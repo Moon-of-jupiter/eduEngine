@@ -24,7 +24,7 @@ bool Game::init()
 
     // Grass
     grassMesh = std::make_shared<eeng::RenderableMesh>();
-    grassMesh->load("assets/grass/grass_trees_merged2.fbx", false);
+    grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
 
     // Horse
     horseMesh = std::make_shared<eeng::RenderableMesh>();
@@ -169,7 +169,8 @@ void Game::render(
     character_aabb2 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix2);
 
     // Character, instance 3
-    characterMesh->animate(2, time * characterAnimSpeed);
+    // characterMesh->animate(2, time * characterAnimSpeed);
+    characterMesh->animateBlend(1, 2, time, time, characterAnimBlend);
     forwardRenderer->renderMesh(characterMesh, characterWorldMatrix3);
     character_aabb3 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix3);
 
@@ -237,6 +238,9 @@ void Game::renderUI()
 
     if (characterMesh)
     {
+        ImGui::Separator();
+        ImGui::Text("1-Clip Animation Demo");
+
         // Combo (drop-down) for animation clip
         int curAnimIndex = characterAnimIndex;
         std::string label = (curAnimIndex == -1 ? "Bind pose" : characterMesh->getAnimationName(curAnimIndex));
@@ -262,40 +266,43 @@ void Game::renderUI()
             ImGui::EndCombo();
             characterAnimIndex = curAnimIndex;
         }
-
-        // In-world position label
-        const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
-        auto world_pos = glm::vec3(horseWorldMatrix[3]);
-        glm::ivec2 window_coords;
-        if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
-        {
-            ImGui::SetNextWindowPos(
-                ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
-                ImGuiCond_Always,
-                ImVec2{ 0.0f, 0.0f });
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
-            ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
-
-            ImGuiWindowFlags flags =
-                ImGuiWindowFlags_NoDecoration |
-                ImGuiWindowFlags_NoInputs |
-                // ImGuiWindowFlags_NoBackground |
-                ImGuiWindowFlags_AlwaysAutoResize;
-
-            if (ImGui::Begin("window_name", nullptr, flags))
-            {
-                ImGui::Text("In-world GUI element");
-                ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.x);
-                ImGui::Text("World pos (%1.1f, %1.1f, %1.1f)", world_pos.x, world_pos.y, world_pos.z);
-                ImGui::End();
-            }
-            ImGui::PopStyleColor(2);
-        }
     }
-
     ImGui::SliderFloat("Animation speed", &characterAnimSpeed, 0.1f, 5.0f);
 
+    ImGui::Separator();
+    ImGui::Text("2-Clip Animation Demo (Idle + Walk)");
+    ImGui::SliderFloat("Blend factor", &characterAnimBlend, 0.0f, 1.0f);
+
     ImGui::End(); // end info window
+
+    // In-world position label
+    const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
+    auto world_pos = glm::vec3(horseWorldMatrix[3]);
+    glm::ivec2 window_coords;
+    if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+    {
+        ImGui::SetNextWindowPos(
+            ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
+            ImGuiCond_Always,
+            ImVec2{ 0.0f, 0.0f });
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+        ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+        ImGuiWindowFlags flags =
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoInputs |
+            // ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_AlwaysAutoResize;
+
+        if (ImGui::Begin("window_name", nullptr, flags))
+        {
+            ImGui::Text("In-world GUI element");
+            ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
+            ImGui::Text("World pos (%1.1f, %1.1f, %1.1f)", world_pos.x, world_pos.y, world_pos.z);
+            ImGui::End();
+        }
+        ImGui::PopStyleColor(2);
+    }
 }
 
 void Game::destroy()
