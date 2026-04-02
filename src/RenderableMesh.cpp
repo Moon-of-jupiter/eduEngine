@@ -3,6 +3,7 @@
 
 #include "RenderableMesh.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/dual_quaternion.hpp>
 #include <assimp/version.h>
 
