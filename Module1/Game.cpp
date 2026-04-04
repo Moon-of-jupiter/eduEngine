@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "Log.hpp"
 #include "Game.hpp"
+#include "DataComponents.h"
 
 bool Game::init()
 {
@@ -79,14 +80,121 @@ bool Game::init()
         35.0f, { 0, 1, 0 },
         { 0.01f, 0.01f, 0.01f });
 
+
+    BuildGameObjects();
+
     return true;
 }
+
+
+// turns placeholder stuff into game objects (this too is a placeholder function)
+void Game::BuildGameObjects() {
+    // build grass GO
+    auto grass = entity_registry->create();
+    
+    entity_registry->emplace<Transform_Component>
+        (grass, Transform_Component{
+            glm_aux::TRS(
+            { 0.0f, 0.0f, 0.0f },
+            0.0f, { 0, 1, 0 },
+            { 100.0f, 100.0f, 100.0f })
+        });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (grass, RenderableMesh_Component{
+            grassMesh
+            });
+    
+
+    // build character 1 GO
+    auto c1 = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (c1, Transform_Component{
+            glm_aux::TRS(
+                glm_aux::vec3_000,
+                0.0f, { 0, 1, 0 },
+                { 0.03f, 0.03f, 0.03f })
+            });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (c1, RenderableMesh_Component{
+            characterMesh
+            });
+
+
+
+    // build character 1 GO
+    auto c2 = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (c2, Transform_Component{
+            glm_aux::TRS(
+                {-3,0,0},
+                0.0f, { 0, 1, 0 },
+                { 0.03f, 0.03f, 0.03f })
+            });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (c2, RenderableMesh_Component{
+            characterMesh
+            });
+
+
+    // build character 3 GO
+    auto c3 = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (c3, Transform_Component{
+            glm_aux::TRS(
+                {3,0,0},
+                0.0f, { 0, 1, 0 },
+                { 0.03f, 0.03f, 0.03f })
+            });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (c3, RenderableMesh_Component{
+            characterMesh
+            });
+
+    entity_registry->emplace<LinearVelocity_Component>
+        (c3, LinearVelocity_Component{
+            glm_aux::vec3_001
+            });
+
+
+
+
+    // build horse GO
+
+    // build character 1 GO
+    auto horse = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (horse, Transform_Component{
+            horseWorldMatrix = glm_aux::TRS(
+                { 30.0f, 0.0f, -35.0f },
+                35.0f, { 0, 1, 0 },
+                { 0.01f, 0.01f, 0.01f })
+            });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (horse, RenderableMesh_Component{
+            horseMesh
+            });
+}
+
+
 
 void Game::update(
     float time,
     float deltaTime,
     InputManagerPtr input)
 {
+    updateSystems(time, deltaTime, input);
+
+
+
     updateCamera(input);
 
     updatePlayer(deltaTime, input);
@@ -95,20 +203,23 @@ void Game::update(
         glm_aux::R(time * 0.1f, { 0.0f, 1.0f, 0.0f }) *
         glm::vec4(100.0f, 100.0f, 100.0f, 1.0f));
 
-    characterWorldMatrix1 = glm_aux::TRS(
-        player.pos,
-        0.0f, { 0, 1, 0 },
-        { 0.03f, 0.03f, 0.03f });
+    // !!! legacy !!!
+    if (false) {
+        characterWorldMatrix1 = glm_aux::TRS(
+            player.pos,
+            0.0f, { 0, 1, 0 },
+            { 0.03f, 0.03f, 0.03f });
 
-    characterWorldMatrix2 = glm_aux::TRS(
-        { -3, 0, 0 },
-        time * glm::radians(50.0f), { 0, 1, 0 },
-        { 0.03f, 0.03f, 0.03f });
+        characterWorldMatrix2 = glm_aux::TRS(
+            { -3, 0, 0 },
+            time * glm::radians(50.0f), { 0, 1, 0 },
+            { 0.03f, 0.03f, 0.03f });
 
-    characterWorldMatrix3 = glm_aux::TRS(
-        { 3, 0, 0 },
-        time * glm::radians(50.0f), { 0, 1, 0 },
-        { 0.03f, 0.03f, 0.03f });
+        characterWorldMatrix3 = glm_aux::TRS(
+            { 3, 0, 0 },
+            time * glm::radians(50.0f), { 0, 1, 0 },
+            { 0.03f, 0.03f, 0.03f });
+    }
 
     // Intersect player view ray with AABBs of other objects 
     // Intersection results are stored in the ray's point_of_contact and can be used for picking, shooting, etc.
@@ -148,44 +259,57 @@ void Game::render(
     matrices.P = glm::perspective(glm::radians(60.0f), aspectRatio, camera.nearPlane, camera.farPlane);
     // View matrix
     matrices.V = glm::lookAt(camera.pos, camera.lookAt, camera.up);
+    
     // Viewport matrix
     matrices.VP = glm_aux::create_viewport_matrix(0.0f, 0.0f, windowWidth, windowHeight, 0.0f, 1.0f);
+    
+#pragma region RenderPass
+
     // Begin rendering pass
     forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera.pos);
+    
+    // !!! legacy !!!
+    if (false) {
+        // Grass
+        forwardRenderer->renderMesh(grassMesh, grassWorldMatrix);
+        grass_aabb = grassMesh->m_model_aabb.post_transform(grassWorldMatrix);
 
-    // Grass
-    forwardRenderer->renderMesh(grassMesh, grassWorldMatrix);
-    grass_aabb = grassMesh->m_model_aabb.post_transform(grassWorldMatrix);
+        // Horse
+        horseMesh->animate(3, time);
+        forwardRenderer->renderMesh(horseMesh, horseWorldMatrix);
+        horse_aabb = horseMesh->m_model_aabb.post_transform(horseWorldMatrix);
 
-    // Horse
-    horseMesh->animate(3, time);
-    forwardRenderer->renderMesh(horseMesh, horseWorldMatrix);
-    horse_aabb = horseMesh->m_model_aabb.post_transform(horseWorldMatrix);
+        // Character, instance 1 (middle, moving) - single clip demo
+        characterMesh->animate(middleCharacterAnimIndex, time * characterAnimSpeed);
+        forwardRenderer->renderMesh(characterMesh, characterWorldMatrix1);
+        character_aabb1 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix1);
 
-    // Character, instance 1 (middle, moving) - single clip demo
-    characterMesh->animate(middleCharacterAnimIndex, time * characterAnimSpeed);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix1);
-    character_aabb1 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix1);
+        // Character, instance 2 (left) - two-clip full-body blend
+        // Explanation: Both 'idle' and 'walk' clips are applied to the entire skeleton with a blend factor.
+        characterMesh->animateBlend(1, 2, time, time, leftCharacterAnimBlend);
+        forwardRenderer->renderMesh(characterMesh, characterWorldMatrix2);
+        character_aabb2 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix2);
 
-    // Character, instance 2 (left) - two-clip full-body blend
-    // Explanation: Both 'idle' and 'walk' clips are applied to the entire skeleton with a blend factor.
-    characterMesh->animateBlend(1, 2, time, time, leftCharacterAnimBlend);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix2);
-    character_aabb2 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix2);
+        // Character, instance 3 (right) - filtered walk + wave
+        // Explanation: Nodes in the "mixamorig:Spine" branch (upper body) gets the 'wave' clip, while the rest (lower body) gets the 'walk' clip.
+        eeng::AnimationBranchDesc upperBodyFilter;
+        upperBodyFilter.root_node_name = "mixamorig:Spine";
+        upperBodyFilter.mode = rightCharacterSubtreeUsesWave
+            ? eeng::AnimationBranchDesc::Mode::IncludeSubtree
+            : eeng::AnimationBranchDesc::Mode::ExcludeSubtree;
+        characterMesh->animateBlend(2 /* walk */, 3 /* wave */, time, time, upperBodyFilter);
+        forwardRenderer->renderMesh(characterMesh, characterWorldMatrix3);
+        character_aabb3 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix3);
 
-    // Character, instance 3 (right) - filtered walk + wave
-    // Explanation: Nodes in the "mixamorig:Spine" branch (upper body) gets the 'wave' clip, while the rest (lower body) gets the 'walk' clip.
-    eeng::AnimationBranchDesc upperBodyFilter;
-    upperBodyFilter.root_node_name = "mixamorig:Spine";
-    upperBodyFilter.mode = rightCharacterSubtreeUsesWave
-        ? eeng::AnimationBranchDesc::Mode::IncludeSubtree
-        : eeng::AnimationBranchDesc::Mode::ExcludeSubtree;
-    characterMesh->animateBlend(2 /* walk */, 3 /* wave */, time, time, upperBodyFilter);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix3);
-    character_aabb3 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix3);
+    }
+
+    // update systems in the render pass
+    renderPassSystems(time);
+
 
     // End rendering pass
     drawcallCount = forwardRenderer->endPass();
+#pragma endregion
 
     // Debug draw player view ray
     // Green line if the ray hits an object, white line if it doesn't.
@@ -331,6 +455,8 @@ void Game::destroy()
 
 }
 
+
+#pragma region legacy 
 void Game::updateCamera(
     InputManagerPtr input)
 {
@@ -379,5 +505,78 @@ void Game::updatePlayer(
     // Update camera to track the player
     camera.lookAt += movement;
     camera.pos += movement;
+
+}
+#pragma endregion
+
+
+
+#pragma region systems
+
+void Game::render_System() {
+    auto view = entity_registry->view<Transform_Component, RenderableMesh_Component>();
+
+    for (auto entity : view) {
+
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& mesh = view.get<RenderableMesh_Component>(entity);
+
+        forwardRenderer->renderMesh(mesh._renderable_mesh, transform._world_transform);
+    }
+}
+
+void Game::updateAABB_System() {
+    // to do
+}
+
+void Game::debugDrawAABB_System() {
+    // to do
+}
+
+
+
+void Game::velocity_System() {
+    auto view = entity_registry->view<
+            Transform_Component, 
+            LinearVelocity_Component
+        >();
+
+    for (auto entity : view) {
+
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& velocity = view.get<LinearVelocity_Component>(entity);
+        
+        transform._world_transform *= glm_aux::T(velocity._velocity);
+    }
+
+    
+}
+
+#pragma endregion
+
+
+
+void Game::updateSystems(float time,
+    float deltaTime,
+    InputManagerPtr input) {
+    
+    // update transform with velocity
+    velocity_System();
+
+
+}
+
+
+void Game::renderPassSystems(float time) {
+
+    // update animations
+    //      to do
+    
+    //render meshes
+    render_System();
+
+    // update AABB
+    //      to do
+
 
 }

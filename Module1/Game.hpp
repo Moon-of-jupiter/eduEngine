@@ -7,6 +7,8 @@
 #include "RenderableMesh.hpp"
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
+#include "DataComponents.h"
+
 
 /// @brief A Game may hold, update and render 3D geometry and GUI elements
 class Game : public eeng::GameBase
@@ -38,6 +40,11 @@ public:
     void destroy() override;
 
 private:
+
+    
+
+
+
     /// @brief For rendering of GUI elements
     void renderUI();
 
@@ -125,6 +132,39 @@ private:
     void updatePlayer(
         float deltaTime,
         InputManagerPtr input);
+
+
+
+    void BuildGameObjects();
+
+    
+#pragma region Systems
+
+
+
+    void render_System();
+
+    void updateAABB_System();
+
+    void debugDrawAABB_System();
+
+
+    void velocity_System();
+
+
+
+
+#pragma endregion
+
+
+
+
+
+    void updateSystems(float time,
+        float deltaTime,
+        InputManagerPtr input);
+
+    void renderPassSystems(float time);
 };
 
 #endif
