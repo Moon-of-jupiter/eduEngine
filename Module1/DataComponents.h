@@ -7,14 +7,19 @@
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
 
+
+
 struct Transform_Component {
 public:
     glm::mat4 _world_transform = glm_aux::TRS(
         {0,0,0},
         0.0f, { 0, 1, 0 },
-        { 1, 1, 1 });
-    
+        { 1, 1, 1 });    
 };
+
+
+
+
 
 struct LinearVelocity_Component {
     glm::vec3 _velocity = glm_aux::vec3_000;
@@ -30,9 +35,13 @@ struct  AABB_Component {
 
 
 struct PlayerController_Component {
+    entt::entity _rotationRefrence;
+    
     float speed;
 
-    
+    float movement_lerp = 0.5f;
+    glm::vec3 target_movement = glm_aux::vec3_000;
+    glm::vec3 current_movement = glm_aux::vec3_000;
 };
 
 struct NpcController_Component {
@@ -44,14 +53,25 @@ struct PointLight_Component {
 };
 
 struct Camera_Component {
-    // to do
+    const float nearPlane = 1.0f;           // Rendering near plane
+    const float farPlane = 500.0f;          // Rendering far plane
+
+
 };
 
 
-struct LookAt_Component {
-    glm::vec3 _lookAtPos = glm_aux::vec3_000;
+struct LookAtOrbit_Component {
+    
+    entt::entity _lookAtTarget;
+
     glm::vec3 _upVector = glm_aux::vec3_010;
+    float _distance = 15.0f;
+
+    float yaw = 0.0f;                       // Horizontal angle (radians)
+    float pitch = -glm::pi<float>() / 8;    // Vertical angle (radians)
 };
+
+
 
 
 #endif

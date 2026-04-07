@@ -110,6 +110,9 @@ private:
     glm::mat4 characterWorldMatrix1, characterWorldMatrix2, characterWorldMatrix3;
     glm::mat4 grassWorldMatrix, horseWorldMatrix;
 
+    entt::entity camera_entity;
+
+
     // Game entity AABBs (for collision detection or visualization)
     eeng::AABB character_aabb1, character_aabb2, character_aabb3, horse_aabb, grass_aabb;
 
@@ -149,9 +152,10 @@ private:
     void debugDrawAABB_System();
 
 
-    void velocity_System();
+    void velocity_System(float deltaTime);
 
 
+    void player_System(float deltaTime,InputManagerPtr input);
 
 
 #pragma endregion

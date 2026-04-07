@@ -92,6 +92,8 @@ void Game::BuildGameObjects() {
     // build grass GO
     auto grass = entity_registry->create();
     
+    
+
     entity_registry->emplace<Transform_Component>
         (grass, Transform_Component{
             glm_aux::TRS(
@@ -104,43 +106,67 @@ void Game::BuildGameObjects() {
         (grass, RenderableMesh_Component{
             grassMesh
             });
+
+
+    // build horse GO
+    auto horse = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (horse, Transform_Component{
+            horseWorldMatrix = glm_aux::TRS(
+                { 30.0f, 0.0f, -35.0f },
+                35.0f, { 0, 1, 0 },
+                { 0.01f, 0.01f, 0.01f })
+            });
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (horse, RenderableMesh_Component{
+            horseMesh
+            });
+
+
     
+    if (false) {
+        // build character 1 GO
+        auto c1 = entity_registry->create();
 
-    // build character 1 GO
-    auto c1 = entity_registry->create();
+        entity_registry->emplace<Transform_Component>
+            (c1, Transform_Component{
+                glm_aux::TRS(
+                    glm_aux::vec3_000,
+                    0.0f, { 0, 1, 0 },
+                    { 0.03f, 0.03f, 0.03f })
+                });
 
-    entity_registry->emplace<Transform_Component>
-        (c1, Transform_Component{
-            glm_aux::TRS(
-                glm_aux::vec3_000,
-                0.0f, { 0, 1, 0 },
-                { 0.03f, 0.03f, 0.03f })
-            });
-
-    entity_registry->emplace<RenderableMesh_Component>
-        (c1, RenderableMesh_Component{
-            characterMesh
-            });
-
-
-
-    // build character 1 GO
-    auto c2 = entity_registry->create();
-
-    entity_registry->emplace<Transform_Component>
-        (c2, Transform_Component{
-            glm_aux::TRS(
-                {-3,0,0},
-                0.0f, { 0, 1, 0 },
-                { 0.03f, 0.03f, 0.03f })
-            });
-
-    entity_registry->emplace<RenderableMesh_Component>
-        (c2, RenderableMesh_Component{
-            characterMesh
-            });
+        entity_registry->emplace<RenderableMesh_Component>
+            (c1, RenderableMesh_Component{
+                characterMesh
+                });
+    }
 
 
+    if (false) {
+        // build character 1 GO
+        auto c2 = entity_registry->create();
+
+        entity_registry->emplace<Transform_Component>
+            (c2, Transform_Component{
+                glm_aux::TRS(
+                    {-3,0,0},
+                    0.0f, { 0, 1, 0 },
+                    { 0.03f, 0.03f, 0.03f })
+                });
+
+        
+
+        entity_registry->emplace<RenderableMesh_Component>
+            (c2, RenderableMesh_Component{
+                characterMesh
+                });
+    }
+
+
+    
     // build character 3 GO
     auto c3 = entity_registry->create();
 
@@ -159,29 +185,32 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<LinearVelocity_Component>
         (c3, LinearVelocity_Component{
-            glm_aux::vec3_001
+            glm_aux::vec3_000
+            });
+        
+    entity_registry->emplace<PlayerController_Component>
+        (c3, PlayerController_Component{
+            horse,
+            6
             });
 
+    
+    
 
-
-
-    // build horse GO
-
-    // build character 1 GO
-    auto horse = entity_registry->create();
+    // build camera GO
+    auto cam = entity_registry->create();
 
     entity_registry->emplace<Transform_Component>
-        (horse, Transform_Component{
-            horseWorldMatrix = glm_aux::TRS(
-                { 30.0f, 0.0f, -35.0f },
-                35.0f, { 0, 1, 0 },
-                { 0.01f, 0.01f, 0.01f })
+        (cam, Transform_Component{
+            glm_aux::TRS(
+                {3,4,0},
+                0.0f, { 0, 1, 0 },
+                { 1, 1, 1 })
             });
 
-    entity_registry->emplace<RenderableMesh_Component>
-        (horse, RenderableMesh_Component{
-            horseMesh
-            });
+    camera_entity = cam;
+
+    
 }
 
 
@@ -258,7 +287,9 @@ void Game::render(
     const float aspectRatio = float(windowWidth) / windowHeight;
     matrices.P = glm::perspective(glm::radians(60.0f), aspectRatio, camera.nearPlane, camera.farPlane);
     // View matrix
-    matrices.V = glm::lookAt(camera.pos, camera.lookAt, camera.up);
+    auto local_to_world = entity_registry->get<Transform_Component>(camera_entity)._world_transform;
+  
+    matrices.V = glm::lookAt(camera.pos, camera.lookAt, camera.up);// glm::inverse(local_to_world);//
     
     // Viewport matrix
     matrices.VP = glm_aux::create_viewport_matrix(0.0f, 0.0f, windowWidth, windowHeight, 0.0f, 1.0f);
@@ -522,7 +553,11 @@ void Game::render_System() {
         auto& mesh = view.get<RenderableMesh_Component>(entity);
 
         forwardRenderer->renderMesh(mesh._renderable_mesh, transform._world_transform);
+
+
     }
+
+    
 }
 
 void Game::updateAABB_System() {
@@ -535,7 +570,7 @@ void Game::debugDrawAABB_System() {
 
 
 
-void Game::velocity_System() {
+void Game::velocity_System(float deltaTime) {
     auto view = entity_registry->view<
             Transform_Component, 
             LinearVelocity_Component
@@ -546,11 +581,62 @@ void Game::velocity_System() {
         auto& transform = view.get<Transform_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        transform._world_transform *= glm_aux::T(velocity._velocity);
+        if (velocity._velocity.length == 0) continue;
+
+        transform._world_transform = glm_aux::T(velocity._velocity * deltaTime) * transform._world_transform;
     }
 
     
 }
+
+void Game::player_System(float deltaTime, InputManagerPtr input) {
+    auto view = entity_registry->view<
+        Transform_Component,
+        LinearVelocity_Component,
+        PlayerController_Component
+    >();
+
+    for (auto entity : view) {
+
+        auto& player = view.get<PlayerController_Component>(entity);
+        auto& velocity = view.get<LinearVelocity_Component>(entity);
+        
+        auto& ref_transform = view.get<Transform_Component>(player._rotationRefrence);
+        
+        // Fetch keys relevant for player movement
+        using Key = eeng::InputManager::Key;
+        bool W = input->IsKeyPressed(Key::W);
+        bool A = input->IsKeyPressed(Key::A);
+        bool S = input->IsKeyPressed(Key::S);
+        bool D = input->IsKeyPressed(Key::D);
+
+
+        glm::vec3 local_movement =
+            glm_aux::vec3_001 * deltaTime * ((W ? 1.0f : 0.0f) + (S ? -1.0f : 0.0f)) +
+            glm_aux::vec3_100 * deltaTime * ((A ? -1.0f : 0.0f) + (D ? 1.0f : 0.0f));
+        
+
+        
+
+        glm::vec4 world_movement = ref_transform._world_transform * glm::vec4(local_movement, 0);
+
+        world_movement.y = 0;
+
+        auto l = glm::length(world_movement);
+
+
+        player.target_movement = l <= 0 ? glm_aux::vec3_000 : glm::normalize(glm::vec3(world_movement));
+
+        player.current_movement = player.current_movement * player.movement_lerp + player.target_movement * (1.0f - player.movement_lerp);
+
+        velocity._velocity = player.current_movement * player.speed;
+       
+    }
+
+
+}
+
+
 
 #pragma endregion
 
@@ -561,8 +647,9 @@ void Game::updateSystems(float time,
     InputManagerPtr input) {
     
     // update transform with velocity
-    velocity_System();
+    velocity_System(deltaTime);
 
+    player_System(deltaTime, input);
 
 }
 
