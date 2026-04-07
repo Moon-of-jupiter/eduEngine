@@ -157,6 +157,27 @@ private:
 
     void player_System(float deltaTime,InputManagerPtr input);
 
+    //void npc_System(float time);
+
+
+    void LookAt_System(InputManagerPtr input);
+
+    // does not work
+    void RoateToDriection_System();
+
+
+    void SB_Wander_System(float time);
+    
+    void SB_Separation_System();
+
+    void SteeringBehavior_System(float deltaTime);
+
+
+
+
+    void Transform_DebugView();
+
+    void Velocity_DebugView();
 
 #pragma endregion
 
@@ -169,6 +190,20 @@ private:
         InputManagerPtr input);
 
     void renderPassSystems(float time);
+
+
+    float Get1DNoise(const float seed) {
+        return glm::sin(2 * seed) + glm::cos(glm::pi<float>() * seed);
+    }
+
+    
+    uint32_t BitShiftRandom(uint32_t seed) {
+        seed ^= seed << 17;
+        seed ^= seed >> 13;
+        seed ^= seed << 5;
+
+        return seed;
+    }
 };
 
 #endif

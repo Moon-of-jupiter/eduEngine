@@ -145,7 +145,7 @@ void Game::BuildGameObjects() {
     }
 
 
-    if (false) {
+    for (int i = 0; i < 20; i++) {
         // build character 1 GO
         auto c2 = entity_registry->create();
 
@@ -157,12 +157,31 @@ void Game::BuildGameObjects() {
                     { 0.03f, 0.03f, 0.03f })
                 });
 
-        
-
         entity_registry->emplace<RenderableMesh_Component>
             (c2, RenderableMesh_Component{
                 characterMesh
                 });
+
+        entity_registry->emplace<LinearVelocity_Component>
+            (c2, LinearVelocity_Component{
+                glm_aux::vec3_001
+                });
+
+        entity_registry->emplace<SteeringBehavior_Component>
+            (c2, SteeringBehavior_Component{
+                
+                });
+
+        entity_registry->emplace<SB_Wander_Component>
+            (c2, SB_Wander_Component{
+                BitShiftRandom(i + 10)
+                });
+
+        entity_registry->emplace<SB_Separation_Component>
+            (c2, SB_Separation_Component{
+                });
+
+        
     }
 
 
@@ -173,7 +192,7 @@ void Game::BuildGameObjects() {
     entity_registry->emplace<Transform_Component>
         (c3, Transform_Component{
             glm_aux::TRS(
-                {3,0,0},
+                {6,0,0},
                 0.0f, { 0, 1, 0 },
                 { 0.03f, 0.03f, 0.03f })
             });
@@ -188,11 +207,7 @@ void Game::BuildGameObjects() {
             glm_aux::vec3_000
             });
         
-    entity_registry->emplace<PlayerController_Component>
-        (c3, PlayerController_Component{
-            horse,
-            6
-            });
+    
 
     
     
@@ -203,12 +218,27 @@ void Game::BuildGameObjects() {
     entity_registry->emplace<Transform_Component>
         (cam, Transform_Component{
             glm_aux::TRS(
-                {3,4,0},
+                {0,0,0},
                 0.0f, { 0, 1, 0 },
                 { 1, 1, 1 })
             });
 
+    entity_registry->emplace<LookAtOrbit_Component>
+        (cam, LookAtOrbit_Component{
+            c3
+            });
+
+
     camera_entity = cam;
+
+
+
+    // set player camera target
+    entity_registry->emplace<PlayerController_Component>
+        (c3, PlayerController_Component{
+            cam,
+            6
+            });
 
     
 }
@@ -224,9 +254,9 @@ void Game::update(
 
 
 
-    updateCamera(input);
+    //updateCamera(input);
 
-    updatePlayer(deltaTime, input);
+    //updatePlayer(deltaTime, input);
 
     pointlight.pos = glm::vec3(
         glm_aux::R(time * 0.1f, { 0.0f, 1.0f, 0.0f }) *
@@ -289,7 +319,9 @@ void Game::render(
     // View matrix
     auto local_to_world = entity_registry->get<Transform_Component>(camera_entity)._world_transform;
   
-    matrices.V = glm::lookAt(camera.pos, camera.lookAt, camera.up);// glm::inverse(local_to_world);//
+    bool legacyCamera = false;
+
+    matrices.V = legacyCamera ? glm::lookAt(camera.pos, camera.lookAt, camera.up) :  glm::inverse(local_to_world);// 
     
     // Viewport matrix
     matrices.VP = glm_aux::create_viewport_matrix(0.0f, 0.0f, windowWidth, windowHeight, 0.0f, 1.0f);
@@ -357,13 +389,13 @@ void Game::render(
     shapeRenderer->pop_states<ShapeRendering::Color4u>();
 
     // Debug draw object bases
-    {
+    /*{
         shapeRenderer->push_basis_basic(characterWorldMatrix1, 1.0f);
         shapeRenderer->push_basis_basic(characterWorldMatrix2, 1.0f);
         shapeRenderer->push_basis_basic(characterWorldMatrix3, 1.0f);
         shapeRenderer->push_basis_basic(grassWorldMatrix, 1.0f);
         shapeRenderer->push_basis_basic(horseWorldMatrix, 1.0f);
-    }
+    }*/
 
     // Debug draw AABBs
     {
@@ -612,7 +644,7 @@ void Game::player_System(float deltaTime, InputManagerPtr input) {
 
 
         glm::vec3 local_movement =
-            glm_aux::vec3_001 * deltaTime * ((W ? 1.0f : 0.0f) + (S ? -1.0f : 0.0f)) +
+            glm_aux::vec3_001 * deltaTime * ((W ? -1.0f : 0.0f) + (S ? 1.0f : 0.0f)) +
             glm_aux::vec3_100 * deltaTime * ((A ? -1.0f : 0.0f) + (D ? 1.0f : 0.0f));
         
 
@@ -637,6 +669,255 @@ void Game::player_System(float deltaTime, InputManagerPtr input) {
 }
 
 
+void Game::LookAt_System(InputManagerPtr input) {
+    auto view = entity_registry->view<
+        Transform_Component,
+        LookAtOrbit_Component
+    >();
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& lookAt = view.get<LookAtOrbit_Component>(entity);
+        auto& target_transform = view.get<Transform_Component>(lookAt._lookAtTarget);
+
+        // Fetch mouse and compute movement since last frame
+        auto mouse = input->GetMouseState();
+        glm::ivec2 mouse_xy{ mouse.x, mouse.y };
+        glm::ivec2 mouse_xy_diff{ 0, 0 };
+        if (mouse.leftButton && lookAt._mouse_xy_prev.x >= 0)
+            mouse_xy_diff = lookAt._mouse_xy_prev - mouse_xy;
+        lookAt._mouse_xy_prev = mouse_xy;
+
+        // Update camera rotation from mouse movement
+        lookAt._yaw += mouse_xy_diff.x * lookAt.sensitivity;
+        lookAt.pitch += mouse_xy_diff.y * lookAt.sensitivity;
+        lookAt.pitch = glm::clamp(lookAt.pitch, -glm::radians(89.0f), 0.0f);
+
+        // Update camera position
+      
+        transform._world_transform = glm_aux::R(lookAt._yaw, lookAt.pitch) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
+        
+        
+        const glm::vec4 targetPos = target_transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+        const auto toTarget = glm_aux::T(glm::vec3(targetPos));
+
+        transform._world_transform = toTarget * transform._world_transform;
+    }
+
+}
+
+//void Game::npc_System(float time) {
+//    auto view = entity_registry->view<
+//        LinearVelocity_Component,
+//        NpcController_Component
+//    >();
+//
+//    for (auto entity : view) {
+//        auto& velocity = view.get<LinearVelocity_Component>(entity);
+//        auto& npc = view.get<NpcController_Component>(entity);
+//
+//        auto forward = glm::normalize(velocity._velocity);
+//        auto left = glm::cross(forward, glm_aux::vec3_010);
+//
+//        auto force = left * Get1DNoise(time * npc._driftSpeed + npc._seed % 500) * npc._speed;
+//
+//        velocity._velocity += force;
+//
+//
+//        float speed = glm::length(velocity._velocity);
+//
+//        if (speed < npc._breakSpeed)
+//            continue;
+//
+//        velocity._velocity -= velocity._velocity * npc._breakDampening;
+//    }
+//}
+
+void  Game::SteeringBehavior_System(float deltaTime) {
+
+
+    auto view = entity_registry->view<
+        Transform_Component,
+        SteeringBehavior_Component,
+        LinearVelocity_Component
+    >();
+
+    float maxRadius = 10;
+
+    float radiusForce = 5;
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+
+        auto& steering = view.get<SteeringBehavior_Component>(entity);
+        auto& velocity = view.get<LinearVelocity_Component>(entity);
+        
+        auto pos = glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        float distanceToCenter = glm::length(pos);
+        if (distanceToCenter > maxRadius) {
+            steering._acceleration -= glm::normalize(pos)* (distanceToCenter - maxRadius) * radiusForce;
+        }
+
+
+        velocity._velocity += steering._acceleration / 60.0f;
+
+        steering._acceleration = glm_aux::vec3_000;
+
+        float speed = glm::length(velocity._velocity);
+
+
+
+        if (speed >= steering._breakSpeed){
+            velocity._velocity -= velocity._velocity * steering._breakDampening;
+        }
+        
+        steering._forward = glm::normalize(velocity._velocity);
+        steering._left = glm::cross(steering._forward, glm_aux::vec3_010);
+        
+
+        steering._refPos = glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
+    }
+
+}
+
+void Game::SB_Wander_System(float time) {
+    auto view = entity_registry->view<
+        SteeringBehavior_Component,
+        SB_Wander_Component
+    >();
+
+    for (auto entity : view) {
+        auto& steering = view.get<SteeringBehavior_Component>(entity);
+        auto& sb_wander = view.get<SB_Wander_Component>(entity);
+
+        
+
+        auto force = steering._left * Get1DNoise(time * sb_wander._driftSpeed + (sb_wander._seed % 60000) / 3.0f) * sb_wander._speed;
+
+        steering._acceleration += force;
+    }
+}
+
+void Game::SB_Separation_System() {
+
+    auto steeringEntities = entity_registry->view<SteeringBehavior_Component>();
+
+    auto view = entity_registry->view<SB_Separation_Component, SteeringBehavior_Component>();
+
+
+    for (auto entity : view) {
+            
+        auto& this_steering = view.get<SteeringBehavior_Component>(entity);
+        auto& this_behavior = view.get<SB_Separation_Component>(entity);
+
+           
+
+        for (auto other : steeringEntities) {
+            auto& other_steering = view.get<SteeringBehavior_Component>(other);
+
+            auto f = this_steering._refPos - other_steering._refPos;
+
+            float mag = glm::length(f);
+
+            if (mag <= 0)
+                continue;
+
+            f *= 1.0f / mag;
+
+            this_steering._acceleration += f * this_behavior._speed;
+        }            
+
+    }
+
+    
+
+
+
+
+}
+
+
+// does not work
+void Game::RoateToDriection_System() {
+    auto view = entity_registry->view<
+        Transform_Component,
+        LinearVelocity_Component,
+        RotateToVelocity_Component
+    >();
+
+    
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& velocity = view.get<LinearVelocity_Component>(entity);
+        auto& rotator = view.get<RotateToVelocity_Component>(entity);
+
+        rotator._target_direction = glm::normalize(velocity._velocity);
+
+        rotator._current_direction =
+            rotator._target_direction * rotator._lerpValue +
+            rotator._current_direction * (1 - rotator._lerpValue);
+
+        rotator._current_direction = rotator._target_direction;
+
+
+        
+
+        //transform._world_transform = transform._world_transform * glm_aux::R(yaw,0);
+    }
+}
+
+
+
+void Game::Transform_DebugView() {
+    auto view = entity_registry->view<Transform_Component>();
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+
+        shapeRenderer->push_basis_basic(transform._world_transform, 1.0f);
+
+    }
+}
+
+void  Game::Velocity_DebugView() {
+    auto view = entity_registry->view<
+        Transform_Component,
+        LinearVelocity_Component
+    >();
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& velocity = view.get<LinearVelocity_Component>(entity);
+
+        auto origin = glm::vec3(transform._world_transform * glm::vec4(0, 0, 0, 1));
+
+        auto dest = origin + velocity._velocity;
+
+        shapeRenderer->push_line(origin, dest);
+
+    }
+
+
+    auto view2 = entity_registry->view<
+        Transform_Component,
+        SteeringBehavior_Component
+    >();
+
+    for (auto entity : view2) {
+        auto& transform = view2.get<Transform_Component>(entity);
+        auto& steering = view2.get<SteeringBehavior_Component>(entity);
+
+        auto origin = glm::vec3(transform._world_transform * glm::vec4(0, 1, 0, 1));
+
+        auto dest = origin + steering._forward;
+
+        shapeRenderer->push_line(origin, dest);
+
+    }
+}
+
 
 #pragma endregion
 
@@ -647,9 +928,25 @@ void Game::updateSystems(float time,
     InputManagerPtr input) {
     
     // update transform with velocity
-    velocity_System(deltaTime);
+    
+
+    LookAt_System(input);
 
     player_System(deltaTime, input);
+
+    //npc_System(time);
+
+    //RoateToDriection_System();
+
+    SB_Wander_System(time);
+
+    SB_Separation_System();
+
+    SteeringBehavior_System(deltaTime);
+
+    velocity_System(deltaTime);
+
+    
 
 }
 
@@ -665,5 +962,9 @@ void Game::renderPassSystems(float time) {
     // update AABB
     //      to do
 
+
+
+    Transform_DebugView();
+    Velocity_DebugView();
 
 }

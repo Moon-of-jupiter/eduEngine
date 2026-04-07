@@ -44,8 +44,49 @@ struct PlayerController_Component {
     glm::vec3 current_movement = glm_aux::vec3_000;
 };
 
-struct NpcController_Component {
-    // to do
+//struct NpcController_Component {
+//    uint32_t _seed = 0;
+//    float _speed = 0.1f;
+//    float _driftSpeed = 0.5f;
+//
+//    float _breakSpeed = 3.0f;
+//    float _breakDampening = 0.3f;
+//    
+//};
+
+struct SteeringBehavior_Component {
+    float _breakSpeed = 4.0f;
+    float _breakDampening = 0.2f;
+
+    glm::vec3 _forward = glm_aux::vec3_001;
+    glm::vec3 _left = glm_aux::vec3_100;
+
+    glm::vec3 _acceleration = glm_aux::vec3_000;
+
+    glm::vec3 _refPos = glm_aux::vec3_000;
+
+};
+
+struct SB_Wander_Component {
+    uint32_t _seed = 0;
+    float _speed = 2.0f;
+    float _driftSpeed = 0.5f;
+
+    
+};
+
+struct SB_Separation_Component {
+    float _speed = 1.0f;
+};
+
+
+
+// does not work
+struct RotateToVelocity_Component {
+    float _lerpValue = 0.5f;
+    glm::vec3 _up_vector = glm_aux::vec3_010;
+    glm::vec3 _current_direction = glm_aux::vec3_000;
+    glm::vec3 _target_direction = glm_aux::vec3_000;
 };
 
 struct PointLight_Component {
@@ -67,8 +108,11 @@ struct LookAtOrbit_Component {
     glm::vec3 _upVector = glm_aux::vec3_010;
     float _distance = 15.0f;
 
-    float yaw = 0.0f;                       // Horizontal angle (radians)
+    float _yaw = 0.0f;                       // Horizontal angle (radians)
     float pitch = -glm::pi<float>() / 8;    // Vertical angle (radians)
+
+    glm::ivec2 _mouse_xy_prev{0,0};
+    float sensitivity = 0.005f;;
 };
 
 
