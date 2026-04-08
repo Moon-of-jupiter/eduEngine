@@ -95,7 +95,6 @@ struct SB_Separation_Component {
 // does not work
 struct RotateToVelocity_Component {
     float _lerpValue = 0.5f;
-    glm::vec3 _up_vector = glm_aux::vec3_010;
     glm::vec3 _current_direction = glm_aux::vec3_000;
     glm::vec3 _target_direction = glm_aux::vec3_000;
 };

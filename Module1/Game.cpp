@@ -173,6 +173,11 @@ void Game::BuildGameObjects() {
                 glm_aux::vec3_001
                 });
 
+        entity_registry->emplace<RotateToVelocity_Component>
+            (c2, RotateToVelocity_Component{
+                });
+
+
         entity_registry->emplace<SteeringBehavior_Component>
             (c2, SteeringBehavior_Component{
                 
@@ -212,7 +217,13 @@ void Game::BuildGameObjects() {
         (c3, LinearVelocity_Component{
             glm_aux::vec3_000
             });
+    entity_registry->emplace<RotateToVelocity_Component>
+        (c3, RotateToVelocity_Component{
+            0.1f
+            });
+
         
+    
     entity_registry->emplace<UI_ModifyObject_Component>
         (c3, UI_ModifyObject_Component{
             "player"
@@ -649,8 +660,6 @@ void Game::velocity_System(float deltaTime) {
         auto& transform = view.get<Transform_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        if (velocity._velocity.length == 0) continue;
-
         transform._position += velocity._velocity * deltaTime;
     }
 
@@ -878,7 +887,7 @@ void Game::SB_Separation_System() {
 }
 
 
-// does not work
+
 void Game::RoateToDriection_System() {
     auto view = entity_registry->view<
         Transform_Component,
@@ -899,12 +908,24 @@ void Game::RoateToDriection_System() {
             rotator._target_direction * rotator._lerpValue +
             rotator._current_direction * (1 - rotator._lerpValue);
 
-        rotator._current_direction = rotator._target_direction;
-
-
         
 
-        //transform._world_transform = transform._world_transform * glm_aux::R(yaw,0);
+        auto c = rotator._current_direction;
+
+        c = glm::normalize(c);
+
+        float dotForward = glm::dot(c, glm_aux::vec3_001);
+        float dotLeft = glm::dot(c, glm_aux::vec3_100);
+
+        float absAngle = (1 - dotForward) * glm::pi<float>() * 0.5f;
+        
+        float angle = dotLeft < 0 ? -absAngle : absAngle;
+        
+        if (std::isnan(angle))
+            continue;
+
+        transform._yaw = angle;
+
     }
 }
 
@@ -1088,7 +1109,6 @@ void Game::updateSystems(float time,
 
     //npc_System(time);
 
-    //RoateToDriection_System();
 
     SB_Wander_System(time);
 
@@ -1097,6 +1117,7 @@ void Game::updateSystems(float time,
     SteeringBehavior_System(deltaTime);
 
     // update transform with velocity
+    RoateToDriection_System();
     velocity_System(deltaTime);
 
     
