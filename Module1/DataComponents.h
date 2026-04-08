@@ -11,10 +11,21 @@
 
 struct Transform_Component {
 public:
-    glm::mat4 _world_transform = glm_aux::TRS(
+    /*glm::mat4 _world_transform = glm_aux::TRS(
         {0,0,0},
         0.0f, { 0, 1, 0 },
-        { 1, 1, 1 });    
+        { 1, 1, 1 });  */  
+
+    glm::mat4 GetTransform() {
+        return  glm_aux::T(_position) *
+            glm_aux::R(_yaw, _pitch) *
+            glm_aux::S(_scale);
+    }
+    glm::vec3 _position = glm_aux::vec3_000;
+    float _yaw = 0;
+    float _pitch = 0;
+    glm::vec3 _scale = glm_aux::vec3_111;
+
 };
 
 
@@ -101,6 +112,15 @@ struct Camera_Component {
 };
 
 
+struct UI_ModifyObject_Component {
+    const char* text = "gameObject";
+
+    float _worldPos[3];
+    float _rotation[2];
+    float _scale[3];
+};
+
+
 struct LookAtOrbit_Component {
     
     entt::entity _lookAtTarget;
@@ -108,8 +128,8 @@ struct LookAtOrbit_Component {
     glm::vec3 _upVector = glm_aux::vec3_010;
     float _distance = 15.0f;
 
-    float _yaw = 0.0f;                       // Horizontal angle (radians)
-    float pitch = -glm::pi<float>() / 8;    // Vertical angle (radians)
+    //float _yaw = 0.0f;                       // Horizontal angle (radians)
+    //float pitch = -glm::pi<float>() / 8;    // Vertical angle (radians)
 
     glm::ivec2 _mouse_xy_prev{0,0};
     float sensitivity = 0.005f;;

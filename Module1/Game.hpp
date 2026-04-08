@@ -172,6 +172,9 @@ private:
 
     void SteeringBehavior_System(float deltaTime);
 
+    bool show_ModifyObjectUI = true;
+    void UiModifyObject_System();
+
 
 
 
@@ -188,6 +191,8 @@ private:
     void updateSystems(float time,
         float deltaTime,
         InputManagerPtr input);
+
+    void UI_Systems();
 
     void renderPassSystems(float time);
 

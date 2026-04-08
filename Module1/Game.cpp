@@ -8,6 +8,7 @@
 
 bool Game::init()
 {
+
     forwardRenderer = std::make_shared<eeng::ForwardRenderer>();
     forwardRenderer->init("shaders/phong_vert.glsl", "shaders/phong_frag.glsl");
 
@@ -96,10 +97,10 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<Transform_Component>
         (grass, Transform_Component{
-            glm_aux::TRS(
+            
             { 0.0f, 0.0f, 0.0f },
-            0.0f, { 0, 1, 0 },
-            { 100.0f, 100.0f, 100.0f })
+            0.0f,0.0f,
+            { 100.0f, 100.0f, 100.0f }
         });
 
     entity_registry->emplace<RenderableMesh_Component>
@@ -113,15 +114,20 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<Transform_Component>
         (horse, Transform_Component{
-            horseWorldMatrix = glm_aux::TRS(
+            
                 { 30.0f, 0.0f, -35.0f },
-                35.0f, { 0, 1, 0 },
-                { 0.01f, 0.01f, 0.01f })
+                35.0f, 0.0f,
+                { 0.01f, 0.01f, 0.01f }
             });
 
     entity_registry->emplace<RenderableMesh_Component>
         (horse, RenderableMesh_Component{
             horseMesh
+            });
+
+    entity_registry->emplace<UI_ModifyObject_Component>
+        (horse, UI_ModifyObject_Component{
+            "horse 1"
             });
 
 
@@ -132,10 +138,10 @@ void Game::BuildGameObjects() {
 
         entity_registry->emplace<Transform_Component>
             (c1, Transform_Component{
-                glm_aux::TRS(
+                
                     glm_aux::vec3_000,
-                    0.0f, { 0, 1, 0 },
-                    { 0.03f, 0.03f, 0.03f })
+                    0.0f, 0.0f,
+                    { 0.03f, 0.03f, 0.03f }
                 });
 
         entity_registry->emplace<RenderableMesh_Component>
@@ -151,10 +157,10 @@ void Game::BuildGameObjects() {
 
         entity_registry->emplace<Transform_Component>
             (c2, Transform_Component{
-                glm_aux::TRS(
+                
                     {-3,0,0},
-                    0.0f, { 0, 1, 0 },
-                    { 0.03f, 0.03f, 0.03f })
+                    0.0f, 0.0f,
+                    { 0.03f, 0.03f, 0.03f }
                 });
 
         entity_registry->emplace<RenderableMesh_Component>
@@ -191,10 +197,10 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<Transform_Component>
         (c3, Transform_Component{
-            glm_aux::TRS(
+            
                 {6,0,0},
-                0.0f, { 0, 1, 0 },
-                { 0.03f, 0.03f, 0.03f })
+                0.0f, 0.0f,
+                { 0.03f, 0.03f, 0.03f }
             });
 
     entity_registry->emplace<RenderableMesh_Component>
@@ -207,7 +213,10 @@ void Game::BuildGameObjects() {
             glm_aux::vec3_000
             });
         
-    
+    entity_registry->emplace<UI_ModifyObject_Component>
+        (c3, UI_ModifyObject_Component{
+            "player"
+            });
 
     
     
@@ -217,15 +226,20 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<Transform_Component>
         (cam, Transform_Component{
-            glm_aux::TRS(
+            
                 {0,0,0},
-                0.0f, { 0, 1, 0 },
-                { 1, 1, 1 })
+                0.0f,  -glm::pi<float>() / 8,
+                { 1, 1, 1 }
             });
 
     entity_registry->emplace<LookAtOrbit_Component>
         (cam, LookAtOrbit_Component{
             c3
+            });
+
+    entity_registry->emplace<Camera_Component>
+        (cam, Camera_Component{
+            
             });
 
 
@@ -313,12 +327,17 @@ void Game::render(
 
     matrices.windowSize = glm::ivec2(windowWidth, windowHeight);
 
+    auto& camera_transform = entity_registry->get<Transform_Component>(camera_entity);
+    auto& camera_component = entity_registry->get<Camera_Component>(camera_entity);
+
     // Projection matrix
     const float aspectRatio = float(windowWidth) / windowHeight;
-    matrices.P = glm::perspective(glm::radians(60.0f), aspectRatio, camera.nearPlane, camera.farPlane);
+    matrices.P = glm::perspective(glm::radians(60.0f), aspectRatio, camera_component.nearPlane, camera_component.farPlane);
     // View matrix
-    auto local_to_world = entity_registry->get<Transform_Component>(camera_entity)._world_transform;
-  
+    auto local_to_world = camera_transform.GetTransform();
+    
+
+
     bool legacyCamera = false;
 
     matrices.V = legacyCamera ? glm::lookAt(camera.pos, camera.lookAt, camera.up) :  glm::inverse(local_to_world);// 
@@ -329,7 +348,7 @@ void Game::render(
 #pragma region RenderPass
 
     // Begin rendering pass
-    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera.pos);
+    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera_transform._position);
     
     // !!! legacy !!!
     if (false) {
@@ -424,8 +443,16 @@ void Game::render(
 
 void Game::renderUI()
 {
+
+    UI_Systems();
+
+
+
+
     // Begin game info ImGui window
     ImGui::Begin("Game Info");
+
+
 
     ImGui::Text("Drawcall count %i", drawcallCount);
 
@@ -435,6 +462,16 @@ void Game::renderUI()
         ImGuiColorEditFlags_NoInputs))
     {
     }
+
+    {
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("Misc", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Checkbox("Show GameObject Ui", &show_ModifyObjectUI);
+
+        }
+    }
+
 
     if (characterMesh)
     {
@@ -482,40 +519,39 @@ void Game::renderUI()
 
     ImGui::End(); // end info window
 
-    // In-world position label at horse position
-    const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
-    auto world_pos = glm::vec3(horseWorldMatrix[3]);
-    glm::ivec2 window_coords;
-    if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
-    {
-        // Draw an ImGui label at the projected window coordinates of the horse
-        ImGui::SetNextWindowPos(
-            ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
-            ImGuiCond_Always,
-            ImVec2{ 0.0f, 0.0f });
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
-        ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+    //// In-world position label at horse position
+    //const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
+    //auto world_pos = glm::vec3(horseWorldMatrix[3]);
+    //glm::ivec2 window_coords;
+    //if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+    //{
+    //    // Draw an ImGui label at the projected window coordinates of the horse
+    //    ImGui::SetNextWindowPos(
+    //        ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
+    //        ImGuiCond_Always,
+    //        ImVec2{ 0.0f, 0.0f });
+    //    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+    //    ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
 
-        ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoDecoration |
-            ImGuiWindowFlags_NoInputs |
-            // ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_AlwaysAutoResize;
+    //    ImGuiWindowFlags flags =
+    //        ImGuiWindowFlags_NoDecoration |
+    //        ImGuiWindowFlags_NoInputs |
+    //        // ImGuiWindowFlags_NoBackground |
+    //        ImGuiWindowFlags_AlwaysAutoResize;
 
-        if (ImGui::Begin("window_name", nullptr, flags))
-        {
-            ImGui::Text("In-world GUI element");
-            ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
-            ImGui::Text("World pos (%1.1f, %1.1f, %1.1f)", world_pos.x, world_pos.y, world_pos.z);
-            ImGui::End();
-        }
-        ImGui::PopStyleColor(2);
-    }
+    //    if (ImGui::Begin("window_name", nullptr, flags))
+    //    {
+    //        ImGui::Text("In-world GUI element");
+    //        ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
+    //        ImGui::Text("World pos (%1.1f, %1.1f, %1.1f)", world_pos.x, world_pos.y, world_pos.z);
+    //        ImGui::End();
+    //    }
+    //    ImGui::PopStyleColor(2);
+    //}
 }
 
 void Game::destroy()
 {
-
 }
 
 
@@ -584,7 +620,7 @@ void Game::render_System() {
         auto& transform = view.get<Transform_Component>(entity);
         auto& mesh = view.get<RenderableMesh_Component>(entity);
 
-        forwardRenderer->renderMesh(mesh._renderable_mesh, transform._world_transform);
+        forwardRenderer->renderMesh(mesh._renderable_mesh, transform.GetTransform());
 
 
     }
@@ -615,7 +651,7 @@ void Game::velocity_System(float deltaTime) {
         
         if (velocity._velocity.length == 0) continue;
 
-        transform._world_transform = glm_aux::T(velocity._velocity * deltaTime) * transform._world_transform;
+        transform._position += velocity._velocity * deltaTime;
     }
 
     
@@ -650,7 +686,7 @@ void Game::player_System(float deltaTime, InputManagerPtr input) {
 
         
 
-        glm::vec4 world_movement = ref_transform._world_transform * glm::vec4(local_movement, 0);
+        glm::vec4 world_movement = ref_transform.GetTransform() * glm::vec4(local_movement, 0);
 
         world_movement.y = 0;
 
@@ -689,20 +725,24 @@ void Game::LookAt_System(InputManagerPtr input) {
         lookAt._mouse_xy_prev = mouse_xy;
 
         // Update camera rotation from mouse movement
-        lookAt._yaw += mouse_xy_diff.x * lookAt.sensitivity;
-        lookAt.pitch += mouse_xy_diff.y * lookAt.sensitivity;
-        lookAt.pitch = glm::clamp(lookAt.pitch, -glm::radians(89.0f), 0.0f);
+        transform._yaw += mouse_xy_diff.x * lookAt.sensitivity;
+        transform._pitch += mouse_xy_diff.y * lookAt.sensitivity;
+        transform._pitch = glm::clamp(transform._pitch, -glm::radians(89.0f), 0.0f);
 
         // Update camera position
-      
-        transform._world_transform = glm_aux::R(lookAt._yaw, lookAt.pitch) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
+        const auto toTarget = glm_aux::T(glm::vec3(target_transform._position));
+
+        auto t = toTarget * glm_aux::R(transform._yaw, transform._pitch) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
         
         
-        const glm::vec4 targetPos = target_transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        //const glm::vec4 targetPos = target_transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+        
 
-        const auto toTarget = glm_aux::T(glm::vec3(targetPos));
 
-        transform._world_transform = toTarget * transform._world_transform;
+        //transform._world_transform = toTarget * transform._world_transform;
+
+        transform._position = t[3];
+
     }
 
 }
@@ -753,7 +793,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         auto& steering = view.get<SteeringBehavior_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        auto pos = glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        auto pos = transform._position;
         float distanceToCenter = glm::length(pos);
         if (distanceToCenter > maxRadius) {
             steering._acceleration -= glm::normalize(pos)* (distanceToCenter - maxRadius) * radiusForce;
@@ -776,7 +816,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         steering._left = glm::cross(steering._forward, glm_aux::vec3_010);
         
 
-        steering._refPos = glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
+        steering._refPos = transform._position;//glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
     }
 
 }
@@ -870,13 +910,118 @@ void Game::RoateToDriection_System() {
 
 
 
+
+
+
+
+void Game::UiModifyObject_System() {
+    auto view = entity_registry->view<Transform_Component, UI_ModifyObject_Component>();
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& ui_window = view.get<UI_ModifyObject_Component>(entity);
+
+
+        // get world pos
+        ui_window._worldPos[0] = transform._position.x;
+        ui_window._worldPos[1] = transform._position.y;
+        ui_window._worldPos[2] = transform._position.z;
+
+        // get rotation
+        ui_window._rotation[0] = transform._yaw;
+        ui_window._rotation[1] = transform._pitch;
+
+        // get scale
+        ui_window._scale[0] = transform._scale.x;
+        ui_window._scale[1] = transform._scale.y;
+        ui_window._scale[2] = transform._scale.z;
+
+        // In-world position label at object position
+        const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
+        auto world_pos = transform._position;
+        glm::ivec2 window_coords;
+        if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+        {
+            // Draw an ImGui label at the projected window coordinates of the horse
+            ImGui::SetNextWindowPos(
+                ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
+                ImGuiCond_Always,
+                ImVec2{ 0.0f, 0.0f });
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+            ImGuiWindowFlags flags = 
+            //ImGuiWindowFlags_NoDecoration;
+            //ImGuiWindowFlags_NoInputs |
+            // ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_AlwaysAutoResize;
+
+            if (ImGui::Begin(ui_window.text)) {
+
+                ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
+                
+
+                //  world pos
+                if (ImGui::InputFloat3("World pos", ui_window._worldPos/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._position = {
+                        ui_window._worldPos[0],
+                        ui_window._worldPos[1],
+                        ui_window._worldPos[2]
+
+                    };
+                }
+                //  rotation
+                if (ImGui::InputFloat2("Yaw, Pitch", ui_window._rotation/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._yaw = ui_window._rotation[0];
+                    transform._pitch = ui_window._rotation[1];
+
+                }
+                //  scale
+                if (ImGui::InputFloat3("Scale", ui_window._scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._scale = {
+                        ui_window._scale[0],
+                        ui_window._scale[1],
+                        ui_window._scale[2]
+
+                    };
+                }
+
+
+            }
+
+            ImGui::End();
+
+            ImGui::PopStyleColor(2);
+            
+        
+        }
+       
+
+
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+
 void Game::Transform_DebugView() {
     auto view = entity_registry->view<Transform_Component>();
 
     for (auto entity : view) {
         auto& transform = view.get<Transform_Component>(entity);
 
-        shapeRenderer->push_basis_basic(transform._world_transform, 1.0f);
+        shapeRenderer->push_basis_basic(transform.GetTransform(), 1.0f);
 
     }
 }
@@ -891,7 +1036,7 @@ void  Game::Velocity_DebugView() {
         auto& transform = view.get<Transform_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
 
-        auto origin = glm::vec3(transform._world_transform * glm::vec4(0, 0, 0, 1));
+        auto origin = glm::vec3(transform.GetTransform() * glm::vec4(0, 0, 0, 1));
 
         auto dest = origin + velocity._velocity;
 
@@ -909,7 +1054,7 @@ void  Game::Velocity_DebugView() {
         auto& transform = view2.get<Transform_Component>(entity);
         auto& steering = view2.get<SteeringBehavior_Component>(entity);
 
-        auto origin = glm::vec3(transform._world_transform * glm::vec4(0, 1, 0, 1));
+        auto origin = glm::vec3(transform.GetTransform() * glm::vec4(0, 1, 0, 1));
 
         auto dest = origin + steering._forward;
 
@@ -919,15 +1064,22 @@ void  Game::Velocity_DebugView() {
 }
 
 
+
+
+
+
 #pragma endregion
 
 
+void Game::UI_Systems() {
+    if (show_ModifyObjectUI) {
+        UiModifyObject_System();
+    }
+}
 
 void Game::updateSystems(float time,
     float deltaTime,
     InputManagerPtr input) {
-    
-    // update transform with velocity
     
 
     LookAt_System(input);
@@ -944,6 +1096,7 @@ void Game::updateSystems(float time,
 
     SteeringBehavior_System(deltaTime);
 
+    // update transform with velocity
     velocity_System(deltaTime);
 
     
