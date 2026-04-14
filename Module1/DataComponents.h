@@ -88,11 +88,11 @@ struct SB_Wander_Component {
 
 struct SB_Separation_Component {
     float _speed = 1.0f;
+    float _distance = 2.0f;
 };
 
 
 
-// does not work
 struct RotateToVelocity_Component {
     float _lerpValue = 0.5f;
     glm::vec3 _current_direction = glm_aux::vec3_000;
@@ -112,7 +112,7 @@ struct Camera_Component {
 
 
 struct UI_ModifyObject_Component {
-    const char* text = "gameObject";
+    std::string text = "gameObject";
 
     float _worldPos[3];
     float _rotation[2];

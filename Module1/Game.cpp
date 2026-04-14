@@ -183,16 +183,25 @@ void Game::BuildGameObjects() {
                 
                 });
 
+        auto seed = BitShiftRandom(i + 10);
+
         entity_registry->emplace<SB_Wander_Component>
             (c2, SB_Wander_Component{
-                BitShiftRandom(i + 10)
+                seed
                 });
 
         entity_registry->emplace<SB_Separation_Component>
             (c2, SB_Separation_Component{
                 });
 
-        
+        std::string str = std::to_string(seed);
+        const char* chars = str.c_str();
+
+
+        entity_registry->emplace<UI_ModifyObject_Component>
+            (c2, UI_ModifyObject_Component{
+                "npc"
+                });
     }
 
 
@@ -219,7 +228,7 @@ void Game::BuildGameObjects() {
             });
     entity_registry->emplace<RotateToVelocity_Component>
         (c3, RotateToVelocity_Component{
-            0.1f
+            0.5f
             });
 
         
@@ -275,8 +284,9 @@ void Game::update(
     float deltaTime,
     InputManagerPtr input)
 {
-    updateSystems(time, deltaTime, input);
 
+    updateSystems(time, deltaTime, input);
+    
 
 
     //updateCamera(input);
@@ -792,7 +802,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         LinearVelocity_Component
     >();
 
-    float maxRadius = 10;
+    float maxRadius = 20;
 
     float radiusForce = 5;
 
@@ -807,7 +817,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         if (distanceToCenter > maxRadius) {
             steering._acceleration -= glm::normalize(pos)* (distanceToCenter - maxRadius) * radiusForce;
         }
-
+       
 
         velocity._velocity += steering._acceleration / 60.0f;
 
@@ -869,7 +879,7 @@ void Game::SB_Separation_System() {
 
             float mag = glm::length(f);
 
-            if (mag <= 0)
+            if (mag <= 0 || mag > this_behavior._distance)
                 continue;
 
             f *= 1.0f / mag;
@@ -902,17 +912,17 @@ void Game::RoateToDriection_System() {
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         auto& rotator = view.get<RotateToVelocity_Component>(entity);
 
-        rotator._target_direction = glm::normalize(velocity._velocity);
+        /*rotator._target_direction = glm::normalize(velocity._velocity);
 
         rotator._current_direction =
             rotator._target_direction * rotator._lerpValue +
-            rotator._current_direction * (1 - rotator._lerpValue);
+            rotator._current_direction * (1 - rotator._lerpValue);*/
 
         
 
-        auto c = rotator._current_direction;
+        /*auto c = rotator._current_direction;*/
 
-        c = glm::normalize(c);
+        auto c = glm::normalize(glm::normalize(velocity._velocity));
 
         float dotForward = glm::dot(c, glm_aux::vec3_001);
         float dotLeft = glm::dot(c, glm_aux::vec3_100);
@@ -977,7 +987,7 @@ void Game::UiModifyObject_System() {
             // ImGuiWindowFlags_NoBackground |
             ImGuiWindowFlags_AlwaysAutoResize;
 
-            if (ImGui::Begin(ui_window.text)) {
+            if (ImGui::Begin((ui_window.text + std::to_string((int)entity)).c_str())) {
 
                 ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
                 
