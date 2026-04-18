@@ -1007,7 +1007,6 @@ void Game::UiModifyObject_System() {
 
                     transform._yaw = ui_window._rotation[0];
                     transform._pitch = ui_window._rotation[1];
-
                 }
                 //  scale
                 if (ImGui::InputFloat3("Scale", ui_window._scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
@@ -1090,6 +1089,7 @@ void  Game::Velocity_DebugView() {
         auto dest = origin + steering._forward;
 
         shapeRenderer->push_line(origin, dest);
+        
 
     }
 }
