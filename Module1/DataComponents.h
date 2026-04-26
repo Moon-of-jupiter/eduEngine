@@ -36,9 +36,7 @@ struct LinearVelocity_Component {
     glm::vec3 _velocity = glm_aux::vec3_000;
 };
 
-struct RenderableMesh_Component {
-    std::shared_ptr<eeng::RenderableMesh> _renderable_mesh;
-};
+
 
 struct  AABB_Component {
     eeng::AABB _AABB;
@@ -53,6 +51,12 @@ struct PlayerController_Component {
     float movement_lerp = 0.5f;
     glm::vec3 target_movement = glm_aux::vec3_000;
     glm::vec3 current_movement = glm_aux::vec3_000;
+};
+
+
+struct Animation_FromSpeed_Component {
+    float speed_mult;
+    
 };
 
 //struct NpcController_Component {

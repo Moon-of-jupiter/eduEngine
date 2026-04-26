@@ -8,6 +8,7 @@
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
 #include "DataComponents.h"
+#include "AnimationPackage.h"
 
 
 /// @brief A Game may hold, update and render 3D geometry and GUI elements
@@ -175,6 +176,9 @@ private:
     bool show_ModifyObjectUI = true;
     void UiModifyObject_System();
 
+
+
+    void Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_registry);
 
 
 

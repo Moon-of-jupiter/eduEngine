@@ -5,6 +5,8 @@
 #include "Log.hpp"
 #include "Game.hpp"
 #include "DataComponents.h"
+#include "AnimationPackage.h"
+
 
 bool Game::init()
 {
@@ -34,6 +36,7 @@ bool Game::init()
 
     // Character
     characterMesh = std::make_shared<eeng::RenderableMesh>();
+    
 #if 0
     // Character
     characterMesh->load("assets/Ultimate Platformer Pack/Character/Character.fbx", false);
@@ -55,6 +58,7 @@ bool Game::init()
     characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");
     characterMesh->load("assets/Amy/idle.fbx", true);
     characterMesh->load("assets/Amy/walking.fbx", true);
+    characterMesh->load("assets/Amy/running.fbx", true);
     characterMesh->load("assets/Amy/waving.fbx", true);
     // Remove root motion
     characterMesh->removeTranslationKeys("mixamorig:Hips");
@@ -151,7 +155,11 @@ void Game::BuildGameObjects() {
     }
 
 
-    for (int i = 0; i < 20; i++) {
+    //auto a = std::make_shared<eeng::RenderableMesh>(*characterMesh);
+   
+
+    
+    for (int i = 0; i < 30; i++) {
         // build character 1 GO
         auto c2 = entity_registry->create();
 
@@ -163,6 +171,8 @@ void Game::BuildGameObjects() {
                     { 0.03f, 0.03f, 0.03f }
                 });
 
+        
+        
         entity_registry->emplace<RenderableMesh_Component>
             (c2, RenderableMesh_Component{
                 characterMesh
@@ -180,7 +190,7 @@ void Game::BuildGameObjects() {
 
         entity_registry->emplace<SteeringBehavior_Component>
             (c2, SteeringBehavior_Component{
-                
+                8
                 });
 
         auto seed = BitShiftRandom(i + 10);
@@ -193,6 +203,35 @@ void Game::BuildGameObjects() {
         entity_registry->emplace<SB_Separation_Component>
             (c2, SB_Separation_Component{
                 });
+
+
+
+        entity_registry->emplace<Animation_Component>
+            (c2, Animation_Component{
+                1, 2,
+                false,
+                0.5,
+                });
+        /*entity_registry->emplace<Animation_Basic_Component>
+            (c3, Animation_Basic_Component{
+                1,1
+                });*/
+
+        entity_registry->emplace<Animation_1dBlendSpace_Component>
+            (c2, Animation_1dBlendSpace_Component{
+                {
+                    BlendSpaceElement {1,0},
+                    BlendSpaceElement {2,4},
+                    BlendSpaceElement {3,6},
+                }
+
+                });
+
+        entity_registry->emplace<Animation_FromSpeed_Component>
+            (c2, Animation_FromSpeed_Component{
+                1
+                });
+
 
         std::string str = std::to_string(seed);
         const char* chars = str.c_str();
@@ -231,8 +270,49 @@ void Game::BuildGameObjects() {
             0.5f
             });
 
-        
+
+
+   entity_registry->emplace<Animation_Basic_Component>
+        (c3, Animation_Basic_Component{
+            1,1
+            });
+   
+
+    entity_registry->emplace<Animation_Component>
+        (c3, Animation_Component{
+            2, 4,
+            true,
+            0.5,
+            eeng::AnimationBranchDesc{
+                "mixamorig:Spine2",
+            }
+        });
+
+    /*entity_registry->emplace<Animation_Component>
+        (c3, Animation_Component{
+            1, 2,
+            false,
+            0.5,
+            });
     
+
+    entity_registry->emplace<Animation_1dBlendSpace_Component>
+        (c3, Animation_1dBlendSpace_Component{
+            {
+                BlendSpaceElement {1,0},
+                BlendSpaceElement {2,6},
+                BlendSpaceElement {3,8},
+            }
+            
+            });
+
+    entity_registry->emplace<Animation_FromSpeed_Component>
+        (c3, Animation_FromSpeed_Component{
+            1
+            });*/
+
+
+
     entity_registry->emplace<UI_ModifyObject_Component>
         (c3, UI_ModifyObject_Component{
             "player"
@@ -573,6 +653,7 @@ void Game::renderUI()
 
 void Game::destroy()
 {
+    
 }
 
 
@@ -1041,7 +1122,28 @@ void Game::UiModifyObject_System() {
 
 
 
+void Game::Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<
+        Transform_Component, 
+        LinearVelocity_Component, 
+        Animation_FromSpeed_Component, 
+        Animation_1dBlendSpace_Component
+    >();
 
+    for (auto entity : view) {
+        auto& transform =   view.get<Transform_Component>(entity);
+        auto& velocity =    view.get<LinearVelocity_Component>(entity);
+        auto& aBySpeed =    view.get<Animation_FromSpeed_Component>(entity);
+        auto& aBlendSpace = view.get<Animation_1dBlendSpace_Component>(entity);
+
+        float speed = glm::length(velocity._velocity);
+        
+        aBlendSpace.value = speed * aBySpeed.speed_mult;
+
+
+    }
+
+}
 
 
 
@@ -1111,8 +1213,8 @@ void Game::UI_Systems() {
 void Game::updateSystems(float time,
     float deltaTime,
     InputManagerPtr input) {
-    
 
+   
     LookAt_System(input);
 
     player_System(deltaTime, input);
@@ -1126,12 +1228,18 @@ void Game::updateSystems(float time,
 
     SteeringBehavior_System(deltaTime);
 
+    // animations
+    Animation_BySpeed_System(entity_registry);
+    
+    Animation_Systems::animation_Basic_System(entity_registry, deltaTime);
+    Animation_Systems::animation_1DBlendSpace_System(entity_registry, deltaTime);
+
+
     // update transform with velocity
     RoateToDriection_System();
     velocity_System(deltaTime);
-
+     
     
-
 }
 
 
@@ -1141,7 +1249,7 @@ void Game::renderPassSystems(float time) {
     //      to do
     
     //render meshes
-    render_System();
+    Animation_Systems::render_System(entity_registry, forwardRenderer);
 
     // update AABB
     //      to do
@@ -1150,5 +1258,6 @@ void Game::renderPassSystems(float time) {
 
     Transform_DebugView();
     Velocity_DebugView();
+    Animation_Systems::debug_mesh_bones_System(entity_registry, shapeRenderer);
 
 }
