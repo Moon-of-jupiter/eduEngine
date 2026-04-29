@@ -123,6 +123,13 @@ private:
     float leftCharacterAnimBlend = 0.5f;
     bool rightCharacterSubtreeUsesWave = true;
 
+
+
+    // UI toggles
+    bool show_ModifyObjectUI = true;
+    bool show_debugAnimations = false;
+
+
     // Stats
     int drawcallCount = 0;
 
@@ -173,13 +180,14 @@ private:
 
     void SteeringBehavior_System(float deltaTime);
 
-    bool show_ModifyObjectUI = true;
+    
     void UiModifyObject_System();
 
 
 
     void Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_registry);
-
+    void imGui_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry);
+    void imGui_Animation_Selector(std::shared_ptr<eeng::RenderableMesh> mesh, int& currentIndex, std::string title, std::string id);
 
 
     void Transform_DebugView();

@@ -114,6 +114,7 @@ void Animation_Systems::animation_1DBlendSpace_System(std::shared_ptr<entt::regi
 
 
 
+
 void Animation_Systems::debug_mesh_bones_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer) {
 
     auto view = entity_registry->view<Transform_Component, RenderableMesh_Component>();
@@ -151,7 +152,7 @@ void Animation_Systems::debug_mesh_bones_System(std::shared_ptr<entt::registry> 
         }
 
         
-        drawMeshBones_Debug(mesh._renderable_mesh, transform.GetTransform(), shapeRenderer);
+        AnimationHelpers::drawMeshBones_Debug(mesh._renderable_mesh, transform.GetTransform(), shapeRenderer, 0.02f);
 
     }
     
@@ -159,12 +160,13 @@ void Animation_Systems::debug_mesh_bones_System(std::shared_ptr<entt::registry> 
 
 }
 
-void Animation_Systems::drawMeshBones_Debug(const std::shared_ptr<eeng::RenderableMesh> mesh, const glm::mat4& localToWorld, ShapeRendererPtr shapeRenderer) {
+void AnimationHelpers::drawMeshBones_Debug(const std::shared_ptr<eeng::RenderableMesh> mesh, const glm::mat4& localToWorld, ShapeRendererPtr shapeRenderer, const float boneScale) {
 
     
 
 
     float axisLen = 25.0f;
+   
 
     for (int i = 0; i < mesh->boneMatrices.size(); i++) {
 
@@ -173,9 +175,11 @@ void Animation_Systems::drawMeshBones_Debug(const std::shared_ptr<eeng::Renderab
 
         glm::vec3 pos = global[3];
 
-        glm::vec3 right = glm::vec3(global[0]); // X
-        glm::vec3 up = glm::vec3(global[1]); // Y
-        glm::vec3 fwd = glm::vec3(global[2]); // Z
+        
+
+        glm::vec3 right = glm::normalize(glm::vec3(global[0])) * boneScale; // X
+        glm::vec3 up    = glm::normalize(glm::vec3(global[1])) * boneScale; // Y
+        glm::vec3 fwd   = glm::normalize(glm::vec3(global[2])) * boneScale; // Z
 
         shapeRenderer->push_states(ShapeRendering::Color4u::Red);
         shapeRenderer->push_line(pos, pos + axisLen * right);

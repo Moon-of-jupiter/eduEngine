@@ -58,9 +58,15 @@ namespace Animation_Systems {
 	void debug_mesh_bones_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer);
 
 
-	void drawMeshBones_Debug(const std::shared_ptr<eeng::RenderableMesh> mesh, const glm::mat4& localToWorld, ShapeRendererPtr shapeRenderer);
-}
 
+};
+
+namespace AnimationHelpers {
+	void drawMeshBones_Debug(const std::shared_ptr<eeng::RenderableMesh> mesh, const glm::mat4& localToWorld, ShapeRendererPtr shapeRenderer, const float boneScale);
+
+	//void IK_Simple(const std::shared_ptr<eeng::RenderableMesh> mesh);
+
+};
 
 
 #endif

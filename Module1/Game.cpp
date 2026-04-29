@@ -221,7 +221,8 @@ void Game::BuildGameObjects() {
             (c2, Animation_1dBlendSpace_Component{
                 {
                     BlendSpaceElement {1,0},
-                    BlendSpaceElement {2,4},
+                    BlendSpaceElement {2,2},
+                    BlendSpaceElement {2,5},
                     BlendSpaceElement {3,6},
                 }
 
@@ -237,10 +238,10 @@ void Game::BuildGameObjects() {
         const char* chars = str.c_str();
 
 
-        entity_registry->emplace<UI_ModifyObject_Component>
+        /*entity_registry->emplace<UI_ModifyObject_Component>
             (c2, UI_ModifyObject_Component{
                 "npc"
-                });
+                });*/
     }
 
 
@@ -313,9 +314,8 @@ void Game::BuildGameObjects() {
 
 
 
-    entity_registry->emplace<UI_ModifyObject_Component>
-        (c3, UI_ModifyObject_Component{
-            "player"
+    entity_registry->emplace<IMGUI_Animation_Controller_Component>
+        (c3, IMGUI_Animation_Controller_Component{
             });
 
     
@@ -565,11 +565,16 @@ void Game::renderUI()
     }
 
     {
+        /*ImGui::Separator();
+        if (ImGui::Button("Quit")) {
+            
+        }*/
+
         ImGui::Separator();
         if (ImGui::CollapsingHeader("Misc", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Checkbox("Show GameObject Ui", &show_ModifyObjectUI);
-
+            ImGui::Checkbox("Show Bone Gizmos", &show_debugAnimations);
         }
     }
 
@@ -649,6 +654,42 @@ void Game::renderUI()
     //    }
     //    ImGui::PopStyleColor(2);
     //}
+}
+
+void Game::imGui_Animation_Selector(std::shared_ptr<eeng::RenderableMesh> mesh, int& currentIndex, std::string title, std::string id) {
+
+    // Combo (drop-down) for animation clip
+    int curAnimIndex = currentIndex;
+    std::string label = (curAnimIndex == 0 ? "Bind pose" : mesh->getAnimationName(curAnimIndex));
+    
+    
+
+    std::string titleId = title+ "##" + id;
+
+    if (ImGui::BeginCombo(titleId.c_str(), label.c_str()))
+    {
+        // Bind pose item
+        const bool isSelected = (curAnimIndex == 0);
+        if (ImGui::Selectable("Bind pose", isSelected))
+            curAnimIndex = 0;
+        if (isSelected)
+            ImGui::SetItemDefaultFocus();
+
+        // Clip items
+        for (int i = 1; i < mesh->getNbrAnimations(); i++)
+        {
+            const bool isSelected = (curAnimIndex == i);
+            const auto label = mesh->getAnimationName(i) + "##" + std::to_string(i) + id;
+            if (ImGui::Selectable(label.c_str(), isSelected))
+                curAnimIndex = i;
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    currentIndex = curAnimIndex;
+
+
 }
 
 void Game::destroy()
@@ -1117,8 +1158,64 @@ void Game::UiModifyObject_System() {
 
 }
 
+void Game::imGui_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<Transform_Component, RenderableMesh_Component, Animation_Component, Animation_Basic_Component, IMGUI_Animation_Controller_Component>();
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& mesh      = view.get<RenderableMesh_Component>(entity);
+        auto& animation = view.get<Animation_Component>(entity);
+        auto& animation_controller = view.get<Animation_Basic_Component>(entity);
+        auto& ui_window = view.get<IMGUI_Animation_Controller_Component>(entity);
+        
+
+        
+        // In-world position label at object position
+        const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
+        auto world_pos = transform._position;
+        glm::ivec2 window_coords;
+        if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+        {
+            // Draw an ImGui label at the projected window coordinates of the horse
+            ImGui::SetNextWindowPos(
+                ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
+                ImGuiCond_Always,
+                ImVec2{ 0.0f, 0.0f });
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+            ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+            ImGuiWindowFlags flags =
+                //ImGuiWindowFlags_NoDecoration;
+                //ImGuiWindowFlags_NoInputs |
+                // ImGuiWindowFlags_NoBackground |
+                ImGuiWindowFlags_AlwaysAutoResize;
+
+            if (ImGui::Begin((ui_window.text + std::to_string((int)entity)).c_str())) {
+
+                ImGui::Separator();
+                ImGui::Text("Animations");
+                imGui_Animation_Selector(mesh._renderable_mesh, animation.baseAnimation, "A", "A_Animation_Selection");
+                imGui_Animation_Selector(mesh._renderable_mesh, animation.secondaryAnimation, "B","B_Animation_Selection");
+
+                ImGui::Separator();
+                ImGui::Text("Blending");
+                ImGui::Checkbox("Use Layering", &animation.useLayering);
+                ImGui::SliderFloat("Blend", &animation.blendFactor,0,1);
+                
+                ImGui::Separator();
+                ImGui::Text("Speed");
+                ImGui::InputFloat("A", &animation_controller.speedMult0);
+                ImGui::InputFloat("B", &animation_controller.speedMult1);
 
 
+            }
+
+            ImGui::End();
+
+            ImGui::PopStyleColor(2);
+
+        }
+    }
+}
 
 
 
@@ -1207,6 +1304,8 @@ void  Game::Velocity_DebugView() {
 void Game::UI_Systems() {
     if (show_ModifyObjectUI) {
         UiModifyObject_System();
+
+        imGui_Animation_Controller_System(entity_registry);
     }
 }
 
@@ -1258,6 +1357,8 @@ void Game::renderPassSystems(float time) {
 
     Transform_DebugView();
     Velocity_DebugView();
-    Animation_Systems::debug_mesh_bones_System(entity_registry, shapeRenderer);
+    if (show_debugAnimations) {
+        Animation_Systems::debug_mesh_bones_System(entity_registry, shapeRenderer);
+    }
 
 }

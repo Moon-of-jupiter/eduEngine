@@ -123,6 +123,11 @@ struct UI_ModifyObject_Component {
     float _scale[3];
 };
 
+struct IMGUI_Animation_Controller_Component {
+    const std::string text = "animation GUI";
+
+};
+
 
 struct LookAtOrbit_Component {
     
