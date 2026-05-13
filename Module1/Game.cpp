@@ -6,7 +6,7 @@
 #include "Game.hpp"
 #include "DataComponents.h"
 #include "AnimationPackage.h"
-
+#include "CollisionPackage.h"
 
 bool Game::init()
 {
@@ -536,6 +536,23 @@ void Game::render(
         shapeRenderer->pop_states<glm::mat4>();
     }
 #endif
+
+    
+
+
+    auto s = CollisionPackage::CollisionHelpers::BuildSphereFromPoints({{0,0,0}, {0,10,0}, {0,5,0}, {0,5,0}, {0,5,0} ,{0,5,0} }, 6);
+
+    auto r = s.GetRadius();
+
+    auto mat = glm_aux::TRS(s.GetPosition(),0, glm_aux::vec3_001, {r,r,r});
+    
+    shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFE61A80 });
+    shapeRenderer->push_states(mat);
+
+    shapeRenderer->push_sphere(1, 1);
+
+    shapeRenderer->pop_states<glm::mat4>();
+    shapeRenderer->pop_states<ShapeRendering::Color4u>();
 
     // Draw shape batches (lines etc)
     shapeRenderer->render(matrices.P * matrices.V);

@@ -46,6 +46,8 @@ void Animation_Systems::render_System(std::shared_ptr<entt::registry> entity_reg
             mesh._renderable_mesh->animate(0, 0);
         }
 
+        
+
         forwardRenderer->renderMesh(mesh._renderable_mesh, transform.GetTransform());
 
 
