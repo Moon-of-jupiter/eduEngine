@@ -47,7 +47,9 @@ void Animation_Systems::render_System(std::shared_ptr<entt::registry> entity_reg
         }
         auto mat = transform.GetTransform();
         mesh._tight_geometry = mesh._renderable_mesh->m_model_aabb;
-        forwardRenderer->renderMesh(mesh._renderable_mesh, mat);
+
+        if(forwardRenderer)
+            forwardRenderer->renderMesh(mesh._renderable_mesh, mat);
 
 
     }

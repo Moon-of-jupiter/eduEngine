@@ -8,7 +8,7 @@
 #include "AABB.h"
 #include "glmcommon.hpp"
 #include "ShapeRenderer.hpp"
-
+#include "DataComponents.h"
 
 
 namespace CollisionPackage {
@@ -52,7 +52,7 @@ namespace CollisionPackage {
 	};
 
 	struct Plane {
-		glm::vec3 normal{0,1,0};
+		//glm::vec3 normal{0,1,0};
 		float distanceToOrigin;
 
 	};
@@ -62,9 +62,6 @@ namespace CollisionPackage {
 
 
 	struct Intersection {
-		int intersection; // -1 = overlap; 0 = collision; 1 = no collision
-		
-		glm::vec3 position;
 		glm::vec3 normal;
 
 		float depth;
@@ -73,8 +70,7 @@ namespace CollisionPackage {
 
 
 	struct PhysicsObject_Component {
-		float _mass = 0;
-		glm::vec3 _forceSum = glm_aux::vec3_000;
+		glm::vec3 _acceleration = glm_aux::vec3_000;
 	};
 	
 	
@@ -86,7 +82,7 @@ namespace CollisionPackage {
 	};
 
 	struct PlaneCollider_Component {
-		Plane _planeColider{ glm_aux::vec3_010, 0 };
+		Plane _planeColider{ 0 };
 	};
 
 	
@@ -111,17 +107,20 @@ namespace CollisionPackage {
 			SphereNode* rightChild;
 
 			void DeleteRecursive() {
+				
+				
 				if (!leftChild && !rightChild) {
+					delete sphere;
 					return;
-				}
-
-				delete sphere;
+					
+				}	
 
 				if (leftChild) {
 					leftChild->DeleteRecursive();
 				}
 
 				if (rightChild) {
+					delete sphere;
 					rightChild->DeleteRecursive();
 				}
 
@@ -141,10 +140,17 @@ namespace CollisionPackage {
 
 		SphereNode* BuildBVHBottomUp(std::vector<Sphere*> spheres, float maxLeafPairDistance);
 
-		std::vector<Sphere*> IntersectBVH(SphereNode* treeRoot, Sphere* sphere);
+		std::vector<Sphere*> IntersectBVH(SphereNode* treeRoot,const Sphere& sphere);
 	}
 
 	namespace CollisionHelpers {
+
+		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, Intersection& collision);
+
+
+
+
+
 
 
 		std::vector<glm::ivec2> FindMinMaxValues(const glm::vec3 (&points)[], int pointCount);
@@ -159,23 +165,23 @@ namespace CollisionPackage {
 
 		bool Sphere_Sphere_Overlap(	const Sphere& A, const Sphere& B);
 
-		bool Sphere_Plane_Overlap(	const Sphere& A, const Plane&  B);
+		//bool Sphere_Plane_Overlap(	const Sphere& A, const Plane&  B);
 
 		bool AABB_AABB_Overlap(	const eeng::AABB& A, const eeng::AABB& B);
 
-		bool AABB_Plane_Overlap(const eeng::AABB& A, const Plane& B);
+		//bool AABB_Plane_Overlap(const eeng::AABB& A, const Plane& B);
 
 
 		void Sphere_Sphere_Collision(const Sphere& A, const Sphere& B, Intersection& outIntersectionA);
 
-		bool Sphere_Plane_Collision(const Sphere& A, const Plane& B, Intersection& outIntersectionA);
 
+
+		void AABB_Plane_Collision(const eeng::AABB& A, const Plane& B, Intersection& outIntersectionA);
 
 		
 		glm::vec3 AABBHalfWidths(const eeng::AABB& A);
 
 		glm::vec3 AABBCenterPoint(const eeng::AABB& A);
-
 
 	}
 }

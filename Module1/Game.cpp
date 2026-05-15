@@ -88,6 +88,8 @@ bool Game::init()
 
     BuildGameObjects();
 
+    Animation_Systems::render_System(entity_registry, nullptr);
+
     return true;
 }
 
@@ -140,7 +142,7 @@ void Game::BuildGameObjects() {
         (horse, LinearVelocity_Component{});
 
     entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
-        (horse, CollisionPackage::PhysicsObject_Component{10});
+        (horse, CollisionPackage::PhysicsObject_Component{});
     
     entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
         (horse, CollisionPackage::PhysicsCollider_Component{});
@@ -299,6 +301,11 @@ void Game::BuildGameObjects() {
             }
         });
 
+    entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+        (c3, CollisionPackage::PhysicsObject_Component{});
+
+    entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
+        (c3, CollisionPackage::PhysicsCollider_Component{});
     /*entity_registry->emplace<Animation_Component>
         (c3, Animation_Component{
             1, 2,
@@ -344,7 +351,7 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<LookAtOrbit_Component>
         (cam, LookAtOrbit_Component{
-            horse
+            c3
             });
 
     entity_registry->emplace<Camera_Component>
@@ -1352,9 +1359,12 @@ void Game::updateSystems(float time,
 
     // update transform with velocity
     RoateToDriection_System();
-    //CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,-9.82,0 });
-    CollisionPackage::PlaneColission_System(entity_registry);
+    CollisionPackage::UpdateColliders_System(entity_registry);
+
+    CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,-9.82,0 });
     CollisionPackage::PhysicsUpdate_System(entity_registry, deltaTime);
+    CollisionPackage::PlaneColission_System(entity_registry);
+    CollisionPackage::DynamicColission_System(entity_registry);
     
     velocity_System(deltaTime);
     CollisionPackage::UpdateColliders_System(entity_registry);
