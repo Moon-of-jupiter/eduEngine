@@ -1,10 +1,15 @@
 #ifndef CollisionPackage_hpp
 #define CollisionPackage_hpp
 #pragma once
+
+#include <entt/entt.hpp>
 #include "RenderableMesh.hpp"
 #include "glmcommon.hpp"
 #include "AABB.h"
 #include "glmcommon.hpp"
+#include "ShapeRenderer.hpp"
+
+
 
 namespace CollisionPackage {
 	
@@ -67,6 +72,38 @@ namespace CollisionPackage {
 
 
 
+	struct PhysicsObject_Component {
+		float _mass = 0;
+		glm::vec3 _forceSum = glm_aux::vec3_000;
+	};
+	
+	
+
+	struct PhysicsCollider_Component {
+		Sphere _broadPhaseCollider;
+		Sphere _loseGeometry;
+		eeng::AABB _tightGeometry;
+	};
+
+	struct PlaneCollider_Component {
+		Plane _planeColider{ glm_aux::vec3_010, 0 };
+	};
+
+	
+	void UpdateColliders_System(std::shared_ptr<entt::registry> entity_registry);
+
+
+	void Gravity_System(std::shared_ptr<entt::registry> entity_registry, glm::vec3 gravity);
+
+	void PhysicsUpdate_System(std::shared_ptr<entt::registry> entity_registry, float deltaTime);
+
+	void PlaneColission_System(std::shared_ptr<entt::registry> entity_registry);
+
+	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry);
+
+	void DebugColliders_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer);
+
+
 	namespace BVH {
 		struct SphereNode {
 			Sphere* sphere;
@@ -116,7 +153,6 @@ namespace CollisionPackage {
 
 		Sphere BuildSphereFromPoints(const glm::vec3(&points)[], int pointCount);
 
-		Sphere BuildSphereFromAABB(const glm::vec3 min, const glm::vec3 max);
 
 
 
@@ -128,6 +164,12 @@ namespace CollisionPackage {
 		bool AABB_AABB_Overlap(	const eeng::AABB& A, const eeng::AABB& B);
 
 		bool AABB_Plane_Overlap(const eeng::AABB& A, const Plane& B);
+
+
+		void Sphere_Sphere_Collision(const Sphere& A, const Sphere& B, Intersection& outIntersectionA);
+
+		bool Sphere_Plane_Collision(const Sphere& A, const Plane& B, Intersection& outIntersectionA);
+
 
 		
 		glm::vec3 AABBHalfWidths(const eeng::AABB& A);

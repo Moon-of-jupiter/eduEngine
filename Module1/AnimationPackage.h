@@ -10,6 +10,7 @@
 
 struct RenderableMesh_Component {
 	std::shared_ptr<eeng::RenderableMesh> _renderable_mesh;
+	eeng::AABB _tight_geometry;
 };
 
 struct Animation_Component {

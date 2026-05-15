@@ -2,8 +2,132 @@
 #include "RenderableMesh.hpp"
 #include "glmcommon.hpp"
 #include "AABB.h"
+#include "Log.hpp"
+
+
+#include "DataComponents.h"
+#include "AnimationPackage.h"
+
 
 namespace CollisionPackage {
+
+
+	void UpdateColliders_System(std::shared_ptr<entt::registry> entity_registry) {
+		auto view = entity_registry->view<Transform_Component, PhysicsCollider_Component, RenderableMesh_Component>();
+
+		for (auto entity : view) {
+			auto& transform = view.get<Transform_Component>(entity);
+			auto& mesh = view.get<RenderableMesh_Component>(entity);
+			auto& collider = view.get<PhysicsCollider_Component>(entity);
+
+			collider._tightGeometry = mesh._tight_geometry.post_transform(transform.GetTransform());
+
+			auto sphere = collider._tightGeometry.getBoundingSphere();
+			collider._loseGeometry = Sphere{sphere, sphere.a};
+			collider._broadPhaseCollider = collider._loseGeometry;
+
+		}
+
+	}
+
+	void Gravity_System(std::shared_ptr<entt::registry> entity_registry, glm::vec3 gravity) {
+		auto view = entity_registry->view<PhysicsObject_Component>();
+		for (auto entity : view) {
+			auto& physics = view.get<PhysicsObject_Component>(entity);
+
+			physics._forceSum += gravity * physics._mass;
+
+		}
+	}
+
+
+
+	void PhysicsUpdate_System(std::shared_ptr<entt::registry> entity_registry, float deltaTime) {
+		auto view = entity_registry->view<PhysicsObject_Component, LinearVelocity_Component>();
+		for (auto entity : view) {
+			auto& velocity = view.get<LinearVelocity_Component>(entity);
+			auto& physics = view.get<PhysicsObject_Component>(entity);
+
+			if (physics._mass == 0)
+				continue;
+
+			auto acceleration = physics._forceSum / physics._mass;
+			
+			velocity._velocity += acceleration * deltaTime;
+
+		}
+
+
+
+	}
+
+
+	void PlaneColission_System(std::shared_ptr<entt::registry> entity_registry) {
+		auto view = entity_registry->view<PhysicsObject_Component, PhysicsCollider_Component>();
+		auto planeColliders = entity_registry->view<PlaneCollider_Component>();
+
+		for (auto entity : view) {
+			auto& collider = view.get<PhysicsCollider_Component>(entity);
+			auto& physics = view.get<PhysicsObject_Component>(entity);
+			
+			for (auto planeE : planeColliders) {
+				auto& planeC = planeColliders.get<PlaneCollider_Component>(planeE);
+
+				if (!CollisionHelpers::Sphere_Plane_Overlap(collider._loseGeometry, planeC._planeColider))
+					continue;
+
+				if (!CollisionHelpers::AABB_Plane_Overlap(collider._tightGeometry, planeC._planeColider))
+					continue;
+
+				eeng::Log("collision w plane");
+
+				//physics._forceSum += planeC._planeColider.normal;
+
+				//////// Handle collision
+			}
+		}
+
+
+
+	}
+
+	void DebugColliders_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer) {
+		auto view = entity_registry->view<PhysicsCollider_Component>();
+		
+		shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFE61A80 });
+		for (auto entity : view) {
+			auto& colliders = view.get<PhysicsCollider_Component>(entity);
+			shapeRenderer->push_AABB(colliders._tightGeometry.min, colliders._tightGeometry.max);
+			
+		}
+		shapeRenderer->pop_states<ShapeRendering::Color4u>();
+
+
+
+		shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFc4ff0e });
+		for (auto entity : view) {
+			auto& colliders = view.get<PhysicsCollider_Component>(entity);
+			
+			auto s = colliders._loseGeometry;
+
+			auto r = s.GetRadius();
+
+			auto mat = glm_aux::TRS(s.GetPosition(), 0, glm_aux::vec3_001, { r,r,r });
+
+			shapeRenderer->push_states(mat);
+
+			shapeRenderer->push_sphere_wireframe(1, 1);
+
+			shapeRenderer->pop_states<glm::mat4>();
+
+		}
+		shapeRenderer->pop_states<ShapeRendering::Color4u>();
+
+	}
+
+
+
+
 
 	std::vector<glm::ivec2> CollisionHelpers::FindMinMaxValues(const glm::vec3(&points)[], int pointCount) {
 		glm::ivec2 minMaxX{ 0, 0}, minMaxY{ 0, 0}, minMaxZ{ 0, 0};

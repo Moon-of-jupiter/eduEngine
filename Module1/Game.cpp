@@ -112,6 +112,8 @@ void Game::BuildGameObjects() {
             grassMesh
             });
 
+    entity_registry->emplace<CollisionPackage::PlaneCollider_Component>
+        (grass, CollisionPackage::PlaneCollider_Component{});
 
     // build horse GO
     auto horse = entity_registry->create();
@@ -134,6 +136,14 @@ void Game::BuildGameObjects() {
             "horse 1"
             });
 
+    entity_registry->emplace<LinearVelocity_Component>
+        (horse, LinearVelocity_Component{});
+
+    entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+        (horse, CollisionPackage::PhysicsObject_Component{10});
+    
+    entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
+        (horse, CollisionPackage::PhysicsCollider_Component{});
 
     
     if (false) {
@@ -334,7 +344,7 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<LookAtOrbit_Component>
         (cam, LookAtOrbit_Component{
-            c3
+            horse
             });
 
     entity_registry->emplace<Camera_Component>
@@ -540,19 +550,8 @@ void Game::render(
     
 
 
-    auto s = CollisionPackage::CollisionHelpers::BuildSphereFromPoints({{0,0,0}, {0,10,0}, {0,5,0}, {0,5,0}, {0,5,0} ,{0,5,0} }, 6);
 
-    auto r = s.GetRadius();
-
-    auto mat = glm_aux::TRS(s.GetPosition(),0, glm_aux::vec3_001, {r,r,r});
     
-    shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFE61A80 });
-    shapeRenderer->push_states(mat);
-
-    shapeRenderer->push_sphere(1, 1);
-
-    shapeRenderer->pop_states<glm::mat4>();
-    shapeRenderer->pop_states<ShapeRendering::Color4u>();
 
     // Draw shape batches (lines etc)
     shapeRenderer->render(matrices.P * matrices.V);
@@ -1353,8 +1352,13 @@ void Game::updateSystems(float time,
 
     // update transform with velocity
     RoateToDriection_System();
+    //CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,-9.82,0 });
+    CollisionPackage::PlaneColission_System(entity_registry);
+    CollisionPackage::PhysicsUpdate_System(entity_registry, deltaTime);
+    
     velocity_System(deltaTime);
-     
+    CollisionPackage::UpdateColliders_System(entity_registry);
+
     
 }
 
@@ -1377,5 +1381,7 @@ void Game::renderPassSystems(float time) {
     if (show_debugAnimations) {
         Animation_Systems::debug_mesh_bones_System(entity_registry, shapeRenderer);
     }
+
+    CollisionPackage::DebugColliders_System(entity_registry, shapeRenderer);
 
 }
