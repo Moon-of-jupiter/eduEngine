@@ -6,6 +6,7 @@
 #include "RenderableMesh.hpp"
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
+#include "unordered_set"
 
 
 
@@ -28,6 +29,10 @@ public:
 
 };
 
+struct Tag_Component {
+public:
+    std::string tag;
+};
 
 
 

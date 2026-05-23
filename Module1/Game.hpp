@@ -7,8 +7,20 @@
 #include "RenderableMesh.hpp"
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
+#include "Log.hpp"
+
+
 #include "DataComponents.h"
 #include "AnimationPackage.h"
+#include "EventPackage.h"
+
+class Test : public EventP::Observer {
+public:
+    void OnNotify(const EventP::Observer::Event& event) override {
+        eeng::Log(event._event.c_str());
+
+    }
+};
 
 
 /// @brief A Game may hold, update and render 3D geometry and GUI elements
@@ -40,10 +52,12 @@ public:
     /// @brief For destruction of game resources
     void destroy() override;
 
+
+
 private:
 
     
-
+    
 
 
     /// @brief For rendering of GUI elements
@@ -57,6 +71,7 @@ private:
 
     // Entity registry - to use in labs
     std::shared_ptr<entt::registry> entity_registry;
+
 
     // Matrices for view, projection and viewport
     struct Matrices
@@ -106,6 +121,11 @@ private:
 
     // Game meshes
     std::shared_ptr<eeng::RenderableMesh> grassMesh, horseMesh, characterMesh;
+
+    EventP::EventQueue event_dispatcher;
+
+
+
 
     // Game entity transformations
     glm::mat4 characterWorldMatrix1, characterWorldMatrix2, characterWorldMatrix3;

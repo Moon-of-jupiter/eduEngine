@@ -19,34 +19,42 @@
 
 namespace EventP {
 	
+	class EventArgs {
+	public:
+		std::string _event;
+		entt::entity _sender;
+
+	};
+
+
 #pragma region Observer Pattern
 	
 
 	
 	class Observer {
-		using Sender = entt::entity&;
-		using Event = std::string;
-
 	public:
+		using Sender = entt::entity;
+		using Event = EventArgs;
+
 		virtual ~Observer() {};
-		virtual void OnNotify(Sender sender, Event event) = 0;
+		virtual void OnNotify(const Event& event) = 0;
 	};
 
 
 	class EventSource {
-		using Sender = entt::entity&;
-		using Event = std::string;
+		using Sender = entt::entity;
+		using Event = EventArgs;
 	
 	private:
-		using func = Observer*;
+		
 
-		std::list<func> _subscribers;
+		std::list<Observer*> _subscribers;
 
 	public:
 		void SubscribeObserver(Observer* observer);
 		void UnSubscribeObserver(Observer* observer);
 		
-		void Invoke(Sender sender, Event event);
+		void Invoke(Event event);
 
 		
 
@@ -56,31 +64,46 @@ namespace EventP {
 #pragma endregion
 #pragma region EventQueue Pattern
 
+	
+
 
 	class EventQueue {
 	public:
-		using args = int;
-		using Listener = std::function<void(args)>;
+		using Sender = entt::entity;
+		using Event = EventArgs*;
+		using Listener = std::function<void(Event)>;
 		using ListenerID = int;
 
 	private:
 		std::map<ListenerID, Listener> _listeners;
-		std::stack<ListenerID> _vacantListenerSlots;
+		std::list<ListenerID> _vacantListenerSlots;
 		ListenerID _slotCount = 0;
 
-		
+		std::list<Event> _eventQueue;
 
 
 		ListenerID GetNextOpenListenerSlot();
 
 
+		void InvokeEvent(Event event);
+
+		void ClearEvents(std::list<Event>::iterator start, std::list<Event>::iterator end);
+
 	public:
+		~EventQueue();
+
 		ListenerID RegisterListener(Listener listener);
 
 		void DeRegisterListener(ListenerID listenerID);
 
+		void EnqueueEvent(Event event);
+
+		void InvokeEvents();
 
 	};
+
+	
+	
 
 
 #pragma endregion

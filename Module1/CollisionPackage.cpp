@@ -13,17 +13,28 @@ namespace CollisionPackage {
 
 
 	void UpdateColliders_System(std::shared_ptr<entt::registry> entity_registry) {
-		auto view = entity_registry->view<Transform_Component, PhysicsCollider_Component, RenderableMesh_Component>();
+		auto collider_view = entity_registry->view<Transform_Component, PhysicsCollider_Component>();
+		auto mesh_view = entity_registry->view<PhysicsCollider_Component, RenderableMesh_Component>();
 
-		for (auto entity : view) {
-			auto& transform = view.get<Transform_Component>(entity);
-			auto& mesh = view.get<RenderableMesh_Component>(entity);
-			auto& collider = view.get<PhysicsCollider_Component>(entity);
 
-			collider._tightGeometry = mesh._tight_geometry.post_transform(transform.GetTransform());
+
+		for (auto entity : mesh_view) {
+			auto& mesh = mesh_view.get<RenderableMesh_Component>(entity);
+			auto& collider = mesh_view.get<PhysicsCollider_Component>(entity);
+
+			collider._localTightGeometry = mesh._tight_geometry;
+
+
+		}
+
+		for (auto entity : collider_view) {
+			auto& transform = collider_view.get<Transform_Component>(entity);
+			auto& collider = collider_view.get<PhysicsCollider_Component>(entity);
+
+			collider._tightGeometry = collider._localTightGeometry.post_transform(transform.GetTransform());
 
 			auto sphere = collider._tightGeometry.getBoundingSphere();
-			collider._loseGeometry = Sphere{sphere, sphere.a};
+			collider._loseGeometry = Sphere{ sphere, sphere.a };
 			collider._broadPhaseCollider = collider._loseGeometry;
 
 		}
@@ -84,7 +95,7 @@ namespace CollisionPackage {
 
 	}
 
-	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry) {
+	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher) {
 		auto view = entity_registry->view<Transform_Component, LinearVelocity_Component, PhysicsCollider_Component>();
 		auto colliders_view = entity_registry->view<PhysicsCollider_Component>();
 
@@ -103,13 +114,16 @@ namespace CollisionPackage {
 
 
 
-
+		/*
 		for (auto entity : view) {
 			auto& transform = view.get<Transform_Component>(entity);
 			auto& velocity = view.get<LinearVelocity_Component>(entity);
 
 			auto& collider = view.get<PhysicsCollider_Component>(entity);
 			auto possibleColliders = BVH::IntersectBVH(BVH, collider._broadPhaseCollider);
+
+	
+
 
 			for (auto pCollider : possibleColliders) {
 				auto collider_entity = sphere_entity_map[pCollider];
@@ -118,6 +132,10 @@ namespace CollisionPackage {
 					continue;
 
 				auto& other_collider = colliders_view.get<PhysicsCollider_Component>(collider_entity);
+
+				if (collider.isTrigger && other_collider.isTrigger)
+					continue;
+
 				if (!CollisionHelpers::Sphere_Sphere_Overlap(collider._loseGeometry, other_collider._loseGeometry))
 					continue;
 
@@ -126,13 +144,131 @@ namespace CollisionPackage {
 				
 				Intersection outIntersection;
 
+				
+
 				CollisionHelpers::Sphere_Sphere_Collision(collider._loseGeometry, other_collider._loseGeometry, outIntersection);
+				
+				
+				if (glm::abs(outIntersection.normal.x) >= glm::abs(outIntersection.normal.y)) {
+					if (glm::abs(outIntersection.normal.x) >= glm::abs(outIntersection.normal.z)) {
+						outIntersection.normal *= glm_aux::vec3_100;
+					}
+					else {
+						outIntersection.normal *= glm_aux::vec3_001;
+					}
+				}
+				else {
+					outIntersection.normal *= glm_aux::vec3_010;
+				}
+
+
+
+				
+
+
+
+				auto args = new Collision_Args{
+					"EVENT_Collision",
+					entity,
+					collider_entity,
+					outIntersection
+				};
+
+				eventDispatcher.EnqueueEvent(args);
+				
 				outIntersection.depth *= 0.01f;
 				
 				CollisionHelpers::SolveCollision(transform, velocity, outIntersection);
 			}
 
+		}*/
+		
+
+		for (auto entity : colliders_view) {
+			auto& this_collider = view.get<PhysicsCollider_Component>(entity);
+
+			auto possibleColliders = BVH::IntersectBVH(BVH, this_collider._broadPhaseCollider);
+
+			for (auto pCollider : possibleColliders) {
+				auto collider_entity = sphere_entity_map[pCollider];
+
+				if (entity == collider_entity)
+					continue;
+
+				auto& other_collider = view.get<PhysicsCollider_Component>(collider_entity);
+
+
+				if (other_collider.isTrigger)
+					continue;
+
+				if (!CollisionHelpers::Sphere_Sphere_Overlap(this_collider._loseGeometry, other_collider._loseGeometry))
+					continue;
+
+				if (!CollisionHelpers::AABB_AABB_Overlap(this_collider._tightGeometry, other_collider._tightGeometry))
+					continue;
+
+
+				Intersection outIntersection;
+				CollisionHelpers::Sphere_Sphere_Collision(this_collider._loseGeometry, other_collider._loseGeometry, outIntersection);
+
+				if (outIntersection.normal != glm_aux::vec3_000) {
+					if (glm::abs(outIntersection.normal.x) >= glm::abs(outIntersection.normal.y)) {
+						if (glm::abs(outIntersection.normal.x) >= glm::abs(outIntersection.normal.z)) {
+							outIntersection.normal *= glm_aux::vec3_100;
+						}
+						else {
+							outIntersection.normal *= glm_aux::vec3_001;
+						}
+					}
+					else {
+						outIntersection.normal *= glm_aux::vec3_010;
+					}
+					outIntersection.normal = glm::normalize(outIntersection.normal);
+				}
+
+
+				if (this_collider.isTrigger) {
+
+
+					auto args = new Collision_Args{
+					"EVENT_TriggerCollision",
+					entity,
+					collider_entity,
+					outIntersection
+					};
+
+					eventDispatcher.EnqueueEvent(args);
+
+					continue;
+				}
+
+				outIntersection.depth *= 0.01f;
+
+				auto args = new Collision_Args{
+				"EVENT_Collision",
+				entity,
+				collider_entity,
+				outIntersection
+				};
+
+				eventDispatcher.EnqueueEvent(args);
+
+				if (entity_registry->all_of<Transform_Component>(entity) && entity_registry->all_of<LinearVelocity_Component>(entity)) {
+					auto& transform = view.get<Transform_Component>(entity);
+					auto& velocity = view.get<LinearVelocity_Component>(entity);
+
+					CollisionHelpers::SolveCollision(transform, velocity, outIntersection);
+					
+				}
+
+
+			}
+
 		}
+
+
+		
+		
 		sphere_list.clear();
 		sphere_entity_map.clear();
 
@@ -336,8 +472,15 @@ namespace CollisionPackage {
 			auto diff = A.GetPosition() - B.GetPosition();
 			float distCenter = glm::length(diff);
 			float distEdge = distCenter - A.GetRadius() - B.GetRadius();
-			outIntersectionA.normal = diff / distCenter;
+
 			outIntersectionA.depth = -distEdge;
+
+
+			if (distCenter == 0) {
+				outIntersectionA.normal = glm_aux::vec3_000;
+				return;
+			}
+			outIntersectionA.normal = diff / distCenter;
 		}
 
 

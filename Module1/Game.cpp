@@ -7,6 +7,7 @@
 #include "DataComponents.h"
 #include "AnimationPackage.h"
 #include "CollisionPackage.h"
+#include "EventPackage.h"
 
 bool Game::init()
 {
@@ -90,6 +91,36 @@ bool Game::init()
 
     Animation_Systems::render_System(entity_registry, nullptr);
 
+
+    EventP::EventQueue::Listener eventLogger = [&](EventP::EventQueue::Event e) {
+        eeng::Log(e->_event.c_str());
+        
+
+     };
+
+
+    EventP::EventQueue::Listener collisionLogger = [](EventP::EventArgs* e) {
+        if (e->_event == "EVENT_Collision") {
+            CollisionPackage::Collision_Args* args = static_cast<CollisionPackage::Collision_Args*>(e);
+
+            eeng::Log(std::to_string((int)args->otherCollider).c_str());
+        }
+    };
+
+    event_dispatcher.RegisterListener(eventLogger);
+
+    event_dispatcher.RegisterListener(collisionLogger);
+  
+
+    EventP::EventSource source;
+
+    EventP::Observer* test = new Test;
+
+    source.SubscribeObserver(test);
+    source.Invoke(EventP::EventArgs{ "TEST" });
+    source.UnSubscribeObserver(test);
+    delete test;
+
     return true;
 }
 
@@ -117,36 +148,38 @@ void Game::BuildGameObjects() {
     entity_registry->emplace<CollisionPackage::PlaneCollider_Component>
         (grass, CollisionPackage::PlaneCollider_Component{});
 
-    // build horse GO
-    auto horse = entity_registry->create();
+    for (int i = 0; i < 4; i++) {
 
-    entity_registry->emplace<Transform_Component>
-        (horse, Transform_Component{
-            
-                { 30.0f, 0.0f, -35.0f },
-                35.0f, 0.0f,
-                { 0.01f, 0.01f, 0.01f }
-            });
+        // build horse GO
+        auto horse = entity_registry->create();
 
-    entity_registry->emplace<RenderableMesh_Component>
-        (horse, RenderableMesh_Component{
-            horseMesh
-            });
+        entity_registry->emplace<Transform_Component>
+            (horse, Transform_Component{
 
-    entity_registry->emplace<UI_ModifyObject_Component>
-        (horse, UI_ModifyObject_Component{
-            "horse 1"
-            });
+                    { 30.0f, 0.0f, -35.0f },
+                    35.0f, 0.0f,
+                    { 0.01f, 0.01f, 0.01f }
+                });
 
-    entity_registry->emplace<LinearVelocity_Component>
-        (horse, LinearVelocity_Component{});
+        entity_registry->emplace<RenderableMesh_Component>
+            (horse, RenderableMesh_Component{
+                horseMesh
+                });
 
-    entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
-        (horse, CollisionPackage::PhysicsObject_Component{});
-    
-    entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
-        (horse, CollisionPackage::PhysicsCollider_Component{});
+        entity_registry->emplace<UI_ModifyObject_Component>
+            (horse, UI_ModifyObject_Component{
+                "horse 1"
+                });
 
+        entity_registry->emplace<LinearVelocity_Component>
+            (horse, LinearVelocity_Component{});
+
+        entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+            (horse, CollisionPackage::PhysicsObject_Component{});
+
+        entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
+            (horse, CollisionPackage::PhysicsCollider_Component{ });
+    }
     
     if (false) {
         // build character 1 GO
@@ -372,8 +405,10 @@ void Game::BuildGameObjects() {
             });
 
     
-}
 
+
+
+}
 
 
 void Game::update(
@@ -1364,12 +1399,12 @@ void Game::updateSystems(float time,
     CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,-9.82,0 });
     CollisionPackage::PhysicsUpdate_System(entity_registry, deltaTime);
     CollisionPackage::PlaneColission_System(entity_registry);
-    CollisionPackage::DynamicColission_System(entity_registry);
+    CollisionPackage::DynamicColission_System(entity_registry, event_dispatcher);
     
     velocity_System(deltaTime);
     CollisionPackage::UpdateColliders_System(entity_registry);
 
-    
+    event_dispatcher.InvokeEvents();
 }
 
 

@@ -8,7 +8,10 @@
 #include "AABB.h"
 #include "glmcommon.hpp"
 #include "ShapeRenderer.hpp"
+#include "EventPackage.h"
+
 #include "DataComponents.h"
+
 
 
 namespace CollisionPackage {
@@ -68,6 +71,13 @@ namespace CollisionPackage {
 	};
 
 
+	class Collision_Args : public EventP::EventArgs {
+	public:
+		entt::entity otherCollider;
+		Intersection intersection;
+	};
+
+
 
 	struct PhysicsObject_Component {
 		glm::vec3 _acceleration = glm_aux::vec3_000;
@@ -76,9 +86,15 @@ namespace CollisionPackage {
 	
 
 	struct PhysicsCollider_Component {
+		bool isTrigger{ false };
+		eeng::AABB _localTightGeometry;
+
 		Sphere _broadPhaseCollider;
 		Sphere _loseGeometry;
 		eeng::AABB _tightGeometry;
+
+		
+
 	};
 
 	struct PlaneCollider_Component {
@@ -88,16 +104,19 @@ namespace CollisionPackage {
 	
 	void UpdateColliders_System(std::shared_ptr<entt::registry> entity_registry);
 
-
 	void Gravity_System(std::shared_ptr<entt::registry> entity_registry, glm::vec3 gravity);
 
 	void PhysicsUpdate_System(std::shared_ptr<entt::registry> entity_registry, float deltaTime);
 
+
 	void PlaneColission_System(std::shared_ptr<entt::registry> entity_registry);
 
-	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry);
+	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher);
 
 	void DebugColliders_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer);
+
+
+	
 
 
 	namespace BVH {
