@@ -119,6 +119,11 @@ struct Camera_Component {
 
 };
 
+struct IMGUI_WorldPos_Window_Component {
+    std::string _name{ "gameObject" };
+    bool _isOn{ true };
+    
+};
 
 struct UI_ModifyObject_Component {
     std::string text = "gameObject";

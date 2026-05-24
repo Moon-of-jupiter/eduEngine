@@ -13,14 +13,7 @@
 #include "DataComponents.h"
 #include "AnimationPackage.h"
 #include "EventPackage.h"
-
-class Test : public EventP::Observer {
-public:
-    void OnNotify(const EventP::Observer::Event& event) override {
-        eeng::Log(event._event.c_str());
-
-    }
-};
+#include "MeshManager.h"
 
 
 /// @brief A Game may hold, update and render 3D geometry and GUI elements
@@ -72,6 +65,8 @@ private:
     // Entity registry - to use in labs
     std::shared_ptr<entt::registry> entity_registry;
 
+    // Stores meshes by string id
+    std::shared_ptr<my_eeng::MeshManager> meshManager;
 
     // Matrices for view, projection and viewport
     struct Matrices
@@ -93,8 +88,6 @@ private:
 
    
 
-    // Game meshes
-    std::shared_ptr<eeng::RenderableMesh> grassMesh, horseMesh, characterMesh;
 
     EventP::EventQueue event_dispatcher;
 
@@ -128,12 +121,6 @@ private:
 
 
 
-    void render_System();
-
-    void updateAABB_System();
-
-    void debugDrawAABB_System();
-
 
     void velocity_System(float deltaTime);
 
@@ -156,13 +143,25 @@ private:
     void SteeringBehavior_System(float deltaTime);
 
     
-    void UiModifyObject_System();
+
 
 
 
     void Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_registry);
-    void imGui_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry);
     void imGui_Animation_Selector(std::shared_ptr<eeng::RenderableMesh> mesh, int& currentIndex, std::string title, std::string id);
+
+
+    void imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_registry);
+    
+    void imGui_W_Transform_System();
+    void imGui_W_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry);
+    void imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry);
+
+    bool imGui_Prepare_WorldToScreen(glm::vec3 worldPos, glm::ivec2& screenPos_Out);
+
+    void imGui_Base_WorldPositionUI(Transform_Component& transform, entt::entity& entity, const std::function<void()>& func);
+    void imGui_Base_WorldPositionUI(entt::entity& entity, const std::function<void()>& func);
+
 
 
     void Transform_DebugView();
@@ -183,6 +182,7 @@ private:
 
     void renderPassSystems(float time);
 
+    
 
     float Get1DNoise(const float seed) {
         return glm::sin(2 * seed) + glm::cos(glm::pi<float>() * seed);

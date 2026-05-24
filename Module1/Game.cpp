@@ -1,6 +1,7 @@
 
 #include <entt/entt.hpp>
 #include "glmcommon.hpp"
+
 #include "imgui.h"
 #include "Log.hpp"
 #include "Game.hpp"
@@ -8,6 +9,7 @@
 #include "AnimationPackage.h"
 #include "CollisionPackage.h"
 #include "EventPackage.h"
+#include "MeshManager.h"
 
 bool Game::init()
 {
@@ -21,17 +23,21 @@ bool Game::init()
     // Do some entt stuff
     entity_registry = std::make_shared<entt::registry>();
     
-    // Grass
-    grassMesh = std::make_shared<eeng::RenderableMesh>();
-    grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
+    meshManager = std::make_shared<my_eeng::MeshManager>();
 
-    // Horse
-    horseMesh = std::make_shared<eeng::RenderableMesh>();
-    horseMesh->load("assets/Animals/Horse.fbx", false);
-
-    // Character
-    characterMesh = std::make_shared<eeng::RenderableMesh>();
+    meshManager->Load("grass_trees_merged_001", "assets/grass/grass_trees_merged.fbx");
     
+    meshManager->Load("horse_001", "assets/Animals/Horse.fbx", {});
+   
+    meshManager->Load("character_001", "assets/Amy/Ch46_nonPBR.fbx",  { 
+        "assets/Amy/idle.fbx",
+        "assets/Amy/walking.fbx",
+        "assets/Amy/running.fbx",
+        "assets/Amy/waving.fbx",
+    });
+    meshManager->RemoveTranslationKeys("character_001", "mixamorig:Hips");
+
+
 #if 0
     // Character
     characterMesh->load("assets/Ultimate Platformer Pack/Character/Character.fbx", false);
@@ -48,7 +54,7 @@ bool Game::init()
     // Remove root motion
     characterMesh->removeTranslationKeys("mixamorig:Hips");
 #endif
-#if 1
+#if 0
     // Amy 5.0.1 PACK FBX
     characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");
     characterMesh->load("assets/Amy/idle.fbx", true);
@@ -85,27 +91,41 @@ bool Game::init()
      };
 
 
-    EventP::EventQueue::Listener collisionLogger = [](EventP::EventArgs* e) {
-        if (e->_event == "EVENT_Collision") {
-            CollisionPackage::Collision_Args* args = static_cast<CollisionPackage::Collision_Args*>(e);
+   
 
-            eeng::Log(std::to_string((int)args->otherCollider).c_str());
-        }
+    EventP::EventQueue::Listener gameTest1 = [&](EventP::EventArgs* e) {
+        if (e->_event != "EVENT_TriggerStart" && e->_event != "EVENT_TriggerEnd")
+            return;
+
+        bool isStart = e->_event == "EVENT_TriggerStart";
+
+        CollisionPackage::Collision_Args* args = static_cast<CollisionPackage::Collision_Args*>(e);
+
+        if (!entity_registry->any_of<Tag_Component>(args->_sender))
+            return;
+        auto& senderTag = entity_registry->get<Tag_Component>(args->_sender);
+
+        if (!entity_registry->any_of<Tag_Component>(args->otherCollider))
+            return;
+        auto& colliderTag = entity_registry->get<Tag_Component>(args->otherCollider);
+
+
+        if (senderTag.tag != "horse" || colliderTag.tag != "player")
+            return;
+
+        
+        if (!entity_registry->any_of<Animation_Component>(args->_sender))
+            return;
+        auto& horseAnimations = entity_registry->get<Animation_Component>(args->_sender);
+
+        horseAnimations.blendFactor = isStart ? 1 : 0;
+
+
     };
 
     event_dispatcher.RegisterListener(eventLogger);
 
-    event_dispatcher.RegisterListener(collisionLogger);
-  
-
-    EventP::EventSource source;
-
-    EventP::Observer* test = new Test;
-
-    source.SubscribeObserver(test);
-    source.Invoke(EventP::EventArgs{ "TEST" });
-    source.UnSubscribeObserver(test);
-    delete test;
+    event_dispatcher.RegisterListener(gameTest1);
 
     return true;
 }
@@ -128,13 +148,13 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<RenderableMesh_Component>
         (grass, RenderableMesh_Component{
-            grassMesh
+            meshManager->Get("grass_trees_merged_001")
             });
 
     entity_registry->emplace<CollisionPackage::PlaneCollider_Component>
         (grass, CollisionPackage::PlaneCollider_Component{});
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 1; i++) {
 
         // build horse GO
         auto horse = entity_registry->create();
@@ -147,15 +167,15 @@ void Game::BuildGameObjects() {
                     { 0.01f, 0.01f, 0.01f }
                 });
 
+        entity_registry->emplace<IMGUI_WorldPos_Window_Component>
+            (horse, IMGUI_WorldPos_Window_Component{});
+
         entity_registry->emplace<RenderableMesh_Component>
             (horse, RenderableMesh_Component{
-                horseMesh
+                meshManager->Get("horse_001")
                 });
 
-        entity_registry->emplace<UI_ModifyObject_Component>
-            (horse, UI_ModifyObject_Component{
-                "horse 1"
-                });
+        
 
         entity_registry->emplace<LinearVelocity_Component>
             (horse, LinearVelocity_Component{});
@@ -164,30 +184,31 @@ void Game::BuildGameObjects() {
             (horse, CollisionPackage::PhysicsObject_Component{});
 
         entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
-            (horse, CollisionPackage::PhysicsCollider_Component{ });
+            (horse, CollisionPackage::PhysicsCollider_Component{true });
+
+        entity_registry->emplace<Animation_Basic_Component>
+            (horse, Animation_Basic_Component{
+                1,1
+                });
+
+
+        entity_registry->emplace<Animation_Component>
+            (horse, Animation_Component{
+                0, 1,
+                false,
+                0
+                });
+
+        entity_registry->emplace<Tag_Component>
+            (horse, Tag_Component{
+                "horse"
+                });
+
+ 
     }
+
     
-    if (false) {
-        // build character 1 GO
-        auto c1 = entity_registry->create();
-
-        entity_registry->emplace<Transform_Component>
-            (c1, Transform_Component{
-                
-                    glm_aux::vec3_000,
-                    0.0f, 0.0f,
-                    { 0.03f, 0.03f, 0.03f }
-                });
-
-        entity_registry->emplace<RenderableMesh_Component>
-            (c1, RenderableMesh_Component{
-                characterMesh
-                });
-    }
-
-
     //auto a = std::make_shared<eeng::RenderableMesh>(*characterMesh);
-   
 
     
     for (int i = 0; i < 30; i++) {
@@ -206,7 +227,7 @@ void Game::BuildGameObjects() {
         
         entity_registry->emplace<RenderableMesh_Component>
             (c2, RenderableMesh_Component{
-                characterMesh
+                meshManager->Get("character_001")
                 });
 
         entity_registry->emplace<LinearVelocity_Component>
@@ -278,40 +299,43 @@ void Game::BuildGameObjects() {
 
     
     // build character 3 GO
-    auto c3 = entity_registry->create();
+    auto playerCharacter = entity_registry->create();
 
     entity_registry->emplace<Transform_Component>
-        (c3, Transform_Component{
+        (playerCharacter, Transform_Component{
             
                 {6,0,0},
                 0.0f, 0.0f,
                 { 0.03f, 0.03f, 0.03f }
             });
 
+    entity_registry->emplace<IMGUI_WorldPos_Window_Component>
+        (playerCharacter, IMGUI_WorldPos_Window_Component{});
+
     entity_registry->emplace<RenderableMesh_Component>
-        (c3, RenderableMesh_Component{
-            characterMesh
+        (playerCharacter, RenderableMesh_Component{
+            meshManager->Get("character_001")
             });
 
     entity_registry->emplace<LinearVelocity_Component>
-        (c3, LinearVelocity_Component{
+        (playerCharacter, LinearVelocity_Component{
             glm_aux::vec3_000
             });
     entity_registry->emplace<RotateToVelocity_Component>
-        (c3, RotateToVelocity_Component{
+        (playerCharacter, RotateToVelocity_Component{
             0.5f
             });
 
 
 
    entity_registry->emplace<Animation_Basic_Component>
-        (c3, Animation_Basic_Component{
+        (playerCharacter, Animation_Basic_Component{
             1,1
             });
    
 
     entity_registry->emplace<Animation_Component>
-        (c3, Animation_Component{
+        (playerCharacter, Animation_Component{
             2, 4,
             true,
             0.5,
@@ -321,10 +345,12 @@ void Game::BuildGameObjects() {
         });
 
     entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
-        (c3, CollisionPackage::PhysicsObject_Component{});
+        (playerCharacter, CollisionPackage::PhysicsObject_Component{});
 
     entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
-        (c3, CollisionPackage::PhysicsCollider_Component{});
+        (playerCharacter, CollisionPackage::PhysicsCollider_Component{});
+
+
     /*entity_registry->emplace<Animation_Component>
         (c3, Animation_Component{
             1, 2,
@@ -350,11 +376,12 @@ void Game::BuildGameObjects() {
 
 
 
-    entity_registry->emplace<IMGUI_Animation_Controller_Component>
-        (c3, IMGUI_Animation_Controller_Component{
-            });
 
-    
+
+    entity_registry->emplace<Tag_Component>
+        (playerCharacter, Tag_Component{
+            "player"
+            });
     
 
     // build camera GO
@@ -370,7 +397,7 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<LookAtOrbit_Component>
         (cam, LookAtOrbit_Component{
-            c3
+            playerCharacter
             });
 
     entity_registry->emplace<Camera_Component>
@@ -385,7 +412,7 @@ void Game::BuildGameObjects() {
 
     // set player camera target
     entity_registry->emplace<PlayerController_Component>
-        (c3, PlayerController_Component{
+        (playerCharacter, PlayerController_Component{
             cam,
             6
             });
@@ -558,29 +585,8 @@ void Game::destroy()
 
 #pragma region systems
 
-void Game::render_System() {
-    auto view = entity_registry->view<Transform_Component, RenderableMesh_Component>();
-
-    for (auto entity : view) {
-
-        auto& transform = view.get<Transform_Component>(entity);
-        auto& mesh = view.get<RenderableMesh_Component>(entity);
-
-        forwardRenderer->renderMesh(mesh._renderable_mesh, transform.GetTransform());
 
 
-    }
-
-    
-}
-
-void Game::updateAABB_System() {
-    // to do
-}
-
-void Game::debugDrawAABB_System() {
-    // to do
-}
 
 
 
@@ -833,157 +839,215 @@ void Game::RoateToDriection_System() {
 
 
 
-
-
-void Game::UiModifyObject_System() {
-    auto view = entity_registry->view<Transform_Component, UI_ModifyObject_Component>();
+void Game::imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<Transform_Component, IMGUI_WorldPos_Window_Component>();
 
     for (auto entity : view) {
         auto& transform = view.get<Transform_Component>(entity);
-        auto& ui_window = view.get<UI_ModifyObject_Component>(entity);
+        auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
 
+        if (!ui_window._isOn)
+            return;
 
-        // get world pos
-        ui_window._worldPos[0] = transform._position.x;
-        ui_window._worldPos[1] = transform._position.y;
-        ui_window._worldPos[2] = transform._position.z;
+        glm::ivec2 window_cords;
 
-        // get rotation
-        ui_window._rotation[0] = transform._yaw;
-        ui_window._rotation[1] = transform._pitch;
+        if (!imGui_Prepare_WorldToScreen(transform._position, window_cords))
+            continue;
 
-        // get scale
-        ui_window._scale[0] = transform._scale.x;
-        ui_window._scale[1] = transform._scale.y;
-        ui_window._scale[2] = transform._scale.z;
-
-        // In-world position label at object position
-        const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
-        auto world_pos = transform._position;
-        glm::ivec2 window_coords;
-        if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
-        {
-            // Draw an ImGui label at the projected window coordinates of the horse
-            ImGui::SetNextWindowPos(
-                ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
-                ImGuiCond_Always,
-                ImVec2{ 0.0f, 0.0f });
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
-            ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
-
-            ImGuiWindowFlags flags = 
-            //ImGuiWindowFlags_NoDecoration;
-            //ImGuiWindowFlags_NoInputs |
-            // ImGuiWindowFlags_NoBackground |
-            ImGuiWindowFlags_AlwaysAutoResize;
-
-            if (ImGui::Begin((ui_window.text + std::to_string((int)entity)).c_str())) {
-
-                ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
-                
-
-                //  world pos
-                if (ImGui::InputFloat3("World pos", ui_window._worldPos/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
-
-                    transform._position = {
-                        ui_window._worldPos[0],
-                        ui_window._worldPos[1],
-                        ui_window._worldPos[2]
-
-                    };
-                }
-                //  rotation
-                if (ImGui::InputFloat2("Yaw, Pitch", ui_window._rotation/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
-
-                    transform._yaw = ui_window._rotation[0];
-                    transform._pitch = ui_window._rotation[1];
-                }
-                //  scale
-                if (ImGui::InputFloat3("Scale", ui_window._scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
-
-                    transform._scale = {
-                        ui_window._scale[0],
-                        ui_window._scale[1],
-                        ui_window._scale[2]
-
-                    };
-                }
-
-
-            }
-
-            ImGui::End();
-
-            ImGui::PopStyleColor(2);
-            
         
-        }
-       
 
+        imGui_Base_WorldPositionUI(entity, [&]() {
+            ImGui::Text("ScreenPos: (%i, %i)", window_cords.x, window_cords.y);
+            });
 
     }
 
 
 }
 
-void Game::imGui_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry) {
-    auto view = entity_registry->view<Transform_Component, RenderableMesh_Component, Animation_Component, Animation_Basic_Component, IMGUI_Animation_Controller_Component>();
+
+
+
+void Game::imGui_W_Transform_System() {
+    auto view = entity_registry->view<Transform_Component, IMGUI_WorldPos_Window_Component>();
+
+    float worldPos[3];
+    float rotation[2];
+    float scale[3];
+
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
+
+        if (!ui_window._isOn)
+            return;
+
+        // get world pos
+        worldPos[0] = transform._position.x;
+        worldPos[1] = transform._position.y;
+        worldPos[2] = transform._position.z;
+
+        // get rotation
+        rotation[0] = transform._yaw;
+        rotation[1] = transform._pitch;
+
+        // get scale
+        scale[0] = transform._scale.x;
+        scale[1] = transform._scale.y;
+        scale[2] = transform._scale.z;
+
+        auto lambda = [&]() {
+            if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                //  world pos
+                if (ImGui::InputFloat3("World pos", worldPos/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._position = {
+                        worldPos[0],
+                        worldPos[1],
+                        worldPos[2]
+
+                    };
+                }
+                //  rotation
+                if (ImGui::InputFloat2("Yaw, Pitch", rotation/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._yaw = rotation[0];
+                    transform._pitch = rotation[1];
+                }
+                //  scale
+                if (ImGui::InputFloat3("Scale", scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    transform._scale = {
+                        scale[0],
+                        scale[1],
+                        scale[2]
+
+                    };
+                }
+            }
+        };
+
+        imGui_Base_WorldPositionUI(entity, lambda);
+    }
+
+
+}
+
+
+void Game::imGui_W_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<Transform_Component, RenderableMesh_Component, Animation_Component, Animation_Basic_Component, IMGUI_WorldPos_Window_Component>();
     for (auto entity : view) {
         auto& transform = view.get<Transform_Component>(entity);
         auto& mesh      = view.get<RenderableMesh_Component>(entity);
         auto& animation = view.get<Animation_Component>(entity);
         auto& animation_controller = view.get<Animation_Basic_Component>(entity);
-        auto& ui_window = view.get<IMGUI_Animation_Controller_Component>(entity);
+        auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
         
+        if (!ui_window._isOn)
+            return;
 
-        
-        // In-world position label at object position
-        const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
-        auto world_pos = transform._position;
-        glm::ivec2 window_coords;
-        if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
-        {
-            // Draw an ImGui label at the projected window coordinates of the horse
-            ImGui::SetNextWindowPos(
-                ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
-                ImGuiCond_Always,
-                ImVec2{ 0.0f, 0.0f });
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
-            ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
-
-            ImGuiWindowFlags flags =
-                //ImGuiWindowFlags_NoDecoration;
-                //ImGuiWindowFlags_NoInputs |
-                // ImGuiWindowFlags_NoBackground |
-                ImGuiWindowFlags_AlwaysAutoResize;
-
-            if (ImGui::Begin((ui_window.text + std::to_string((int)entity)).c_str())) {
-
+        auto lambda = [&]() {
+            if (ImGui::CollapsingHeader("Animations", ImGuiTreeNodeFlags_DefaultOpen)){
                 ImGui::Separator();
                 ImGui::Text("Animations");
                 imGui_Animation_Selector(mesh._renderable_mesh, animation.baseAnimation, "A", "A_Animation_Selection");
-                imGui_Animation_Selector(mesh._renderable_mesh, animation.secondaryAnimation, "B","B_Animation_Selection");
+                imGui_Animation_Selector(mesh._renderable_mesh, animation.secondaryAnimation, "B", "B_Animation_Selection");
 
                 ImGui::Separator();
                 ImGui::Text("Blending");
                 ImGui::Checkbox("Use Layering", &animation.useLayering);
-                ImGui::SliderFloat("Blend", &animation.blendFactor,0,1);
-                
+                ImGui::SliderFloat("Blend", &animation.blendFactor, 0, 1);
+
                 ImGui::Separator();
                 ImGui::Text("Speed");
                 ImGui::InputFloat("A", &animation_controller.speedMult0);
                 ImGui::InputFloat("B", &animation_controller.speedMult1);
 
+            }    
+        };
 
-            }
+        
 
-            ImGui::End();
 
-            ImGui::PopStyleColor(2);
-
-        }
+        imGui_Base_WorldPositionUI(entity, lambda);
     }
 }
+
+void Game::imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<Transform_Component,Tag_Component, IMGUI_WorldPos_Window_Component>();
+    
+    for (auto entity : view) {
+        auto& transform = view.get<Transform_Component>(entity);
+        auto& tag = view.get<Tag_Component>(entity);
+        auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
+        
+
+        if (!ui_window._isOn)
+            return;
+
+        auto* str = &tag.tag;
+
+        auto lambda = [&]() {
+            if (ImGui::CollapsingHeader("Tag", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::InputText("Tag", (char*)str->c_str(), str->capacity() + 1);
+            }
+        };
+
+        imGui_Base_WorldPositionUI(entity, lambda);
+        //imGui_Base_WorldPositionUI(transform, entity, lambda);
+
+
+
+    }
+}
+
+
+bool Game::imGui_Prepare_WorldToScreen(glm::vec3 worldPos, glm::ivec2& screenPos_Out) {
+
+    // In-world position label at object position
+    const auto VP_P_V = matrices.VP * matrices.P * matrices.V;
+    auto world_pos = worldPos;
+    glm::ivec2 window_coords;
+    if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+    {
+
+        screenPos_Out = window_coords;
+
+        // Draw an ImGui label at the projected window coordinates of the horse
+        ImGui::SetNextWindowPos(
+            ImVec2{ float(window_coords.x), float(matrices.windowSize.y - window_coords.y) },
+            ImGuiCond_Always,
+            ImVec2{ 0.0f, 0.0f });
+        return true;
+    }
+
+    return false;
+}
+
+
+void Game::imGui_Base_WorldPositionUI(entt::entity& entity, const std::function<void()>& func) {
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+    ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+    ImGuiWindowFlags flags =
+        //ImGuiWindowFlags_NoDecoration;
+        //ImGuiWindowFlags_NoInputs |
+        // ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_AlwaysAutoResize;
+
+    
+
+    if (ImGui::Begin(("GameObject" + std::to_string((int)entity)).c_str())) {
+        func();
+    }
+
+    ImGui::End();
+
+    ImGui::PopStyleColor(2);
+}
+
+
 
 
 
@@ -1069,11 +1133,17 @@ void  Game::Velocity_DebugView() {
 #pragma endregion
 
 
+
+
 void Game::UI_Systems() {
     if (show_ModifyObjectUI) {
-        UiModifyObject_System();
+        imGui_WorldToScreen_System(entity_registry);
 
-        imGui_Animation_Controller_System(entity_registry);
+        imGui_W_Transform_System();
+
+        imGui_W_Animation_Controller_System(entity_registry);
+
+        imGui_W_Tag_System(entity_registry);
     }
 }
 
@@ -1111,6 +1181,8 @@ void Game::updateSystems(float time,
     CollisionPackage::PlaneColission_System(entity_registry);
     CollisionPackage::DynamicColission_System(entity_registry, event_dispatcher);
     
+    CollisionPackage::CollisionStartEnd_System(entity_registry, event_dispatcher);
+
     velocity_System(deltaTime);
     CollisionPackage::UpdateColliders_System(entity_registry);
 
@@ -1120,14 +1192,10 @@ void Game::updateSystems(float time,
 
 void Game::renderPassSystems(float time) {
 
-    // update animations
-    //      to do
-    
+
     //render meshes
     Animation_Systems::render_System(entity_registry, forwardRenderer);
 
-    // update AABB
-    //      to do
 
 
 

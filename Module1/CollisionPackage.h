@@ -8,7 +8,10 @@
 #include "AABB.h"
 #include "glmcommon.hpp"
 #include "ShapeRenderer.hpp"
+#include "set"
+
 #include "EventPackage.h"
+
 
 #include "DataComponents.h"
 
@@ -93,7 +96,9 @@ namespace CollisionPackage {
 		Sphere _loseGeometry;
 		eeng::AABB _tightGeometry;
 
-		
+
+		std::set<entt::entity> currentCollisions;
+		std::set<entt::entity> previousCollisions;
 
 	};
 
@@ -112,6 +117,9 @@ namespace CollisionPackage {
 	void PlaneColission_System(std::shared_ptr<entt::registry> entity_registry);
 
 	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher);
+
+	void CollisionStartEnd_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher);
+
 
 	void DebugColliders_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer);
 

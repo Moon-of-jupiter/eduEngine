@@ -227,6 +227,9 @@ namespace CollisionPackage {
 				}
 
 
+				this_collider.currentCollisions.insert(collider_entity);
+
+
 				if (this_collider.isTrigger) {
 
 
@@ -237,7 +240,7 @@ namespace CollisionPackage {
 					outIntersection
 					};
 
-					eventDispatcher.EnqueueEvent(args);
+					//eventDispatcher.EnqueueEvent(args);
 
 					continue;
 				}
@@ -251,7 +254,7 @@ namespace CollisionPackage {
 				outIntersection
 				};
 
-				eventDispatcher.EnqueueEvent(args);
+				//eventDispatcher.EnqueueEvent(args);
 
 				if (entity_registry->all_of<Transform_Component>(entity) && entity_registry->all_of<LinearVelocity_Component>(entity)) {
 					auto& transform = view.get<Transform_Component>(entity);
@@ -277,6 +280,69 @@ namespace CollisionPackage {
 		
 	}
 
+
+	void CollisionStartEnd_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher) {
+		auto view = entity_registry->view<PhysicsCollider_Component>();
+
+		std::string EVENT_CollisionStart = "EVENT_CollisionStart";
+		std::string EVENT_CollisionEnd = "EVENT_CollisionEnd";
+
+		std::string EVENT_TriggerStart = "EVENT_TriggerStart";
+		std::string EVENT_TriggerEnd = "EVENT_TriggerEnd";
+
+		for (auto entity : view) {
+			auto& collider = view.get<PhysicsCollider_Component>(entity);
+
+			auto& current = collider.currentCollisions;
+			auto& previous = collider.previousCollisions;
+
+			if (current.empty() && previous.empty())
+				continue;
+
+			std::vector<entt::entity> gainedDiff (current.size());
+			std::vector<entt::entity> lostDiff (previous.size());
+
+			auto gainIt = std::set_difference(current.begin(), current.end(), previous.begin(), previous.end(), gainedDiff.begin());
+
+			auto lossIt = std::set_difference(previous.begin(), previous.end(), current.begin(), current.end(), lostDiff.begin());
+
+
+			for (auto it = gainedDiff.begin(); it != gainIt;) {
+				auto current = *it;
+				it++;
+
+				auto args = new Collision_Args{
+				collider.isTrigger ? EVENT_TriggerStart : EVENT_CollisionStart,
+				entity,
+				current
+				};
+
+				eventDispatcher.EnqueueEvent(args);
+				
+			}
+
+
+			for (auto it = lostDiff.begin(); it != lossIt;) {
+				auto current = *it;
+				it++;
+
+				auto args = new Collision_Args{
+				collider.isTrigger ? EVENT_TriggerEnd : EVENT_CollisionEnd,
+				entity,
+				current
+				};
+
+				eventDispatcher.EnqueueEvent(args);
+
+			}
+
+			std::swap(current, previous);
+			
+			current.clear();
+		}
+
+
+	}
 
 
 	void DebugColliders_System(std::shared_ptr<entt::registry> entity_registry, ShapeRendererPtr shapeRenderer) {
