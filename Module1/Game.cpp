@@ -91,9 +91,10 @@ bool Game::init()
      };
 
 
-   
-
-    EventP::EventQueue::Listener gameTest1 = [&](EventP::EventArgs* e) {
+    EventP::EventQueue::Listener getFood_GameEvent = [&](EventP::EventArgs* e) {
+        if (questLineState != QuestLine::GetGrass)
+            return;
+        
         if (e->_event != "EVENT_TriggerStart" && e->_event != "EVENT_TriggerEnd")
             return;
 
@@ -110,22 +111,71 @@ bool Game::init()
         auto& colliderTag = entity_registry->get<Tag_Component>(args->otherCollider);
 
 
-        if (senderTag.tag != "horse" || colliderTag.tag != "player")
+        if (!senderTag.tags.contains("food") || !colliderTag.tags.contains("player"))
+            return;
+
+
+        questLineState = QuestLine::GoToHorse;
+        //colliderTag.tags.emplace("hasFood");
+        
+       
+
+    };
+    
+    EventP::EventQueue::Listener goToHorse_GameEvent = [&](EventP::EventArgs* e) {
+        if (questLineState != QuestLine::GoToHorse && questLineState != QuestLine::FeedHorse)
+            return;
+        
+        if (e->_event != "EVENT_TriggerStart" && e->_event != "EVENT_TriggerEnd")
+            return;
+
+        bool isStart = e->_event == "EVENT_TriggerStart";
+
+        CollisionPackage::Collision_Args* args = static_cast<CollisionPackage::Collision_Args*>(e);
+
+        if (!entity_registry->any_of<Tag_Component>(args->_sender))
+            return;
+        auto& senderTag = entity_registry->get<Tag_Component>(args->_sender);
+
+        if (!entity_registry->any_of<Tag_Component>(args->otherCollider))
+            return;
+        auto& colliderTag = entity_registry->get<Tag_Component>(args->otherCollider);
+
+        
+        if (!senderTag.tags.contains("horse") || !colliderTag.tags.contains("player"))
             return;
 
         
         if (!entity_registry->any_of<Animation_Component>(args->_sender))
             return;
-        auto& horseAnimations = entity_registry->get<Animation_Component>(args->_sender);
-
-        horseAnimations.blendFactor = isStart ? 1 : 0;
-
+        questLineState = isStart ? QuestLine::FeedHorse : QuestLine::GoToHorse;
 
     };
+    
+    EventP::EventQueue::Listener giveFood_GameEvent = [&](EventP::EventArgs* e) {
+            if ( questLineState != QuestLine::FeedHorse)
+                return;
+
+            if (e->_event != "EVENT_KeyStartPress_E")
+                return;
+
+        
+            questLineState = QuestLine::Done;
+       
+
+        };
+
 
     event_dispatcher.RegisterListener(eventLogger);
 
-    event_dispatcher.RegisterListener(gameTest1);
+    event_dispatcher.RegisterListener(getFood_GameEvent);
+    event_dispatcher.RegisterListener(goToHorse_GameEvent);
+
+    event_dispatcher.RegisterListener(giveFood_GameEvent);
+
+
+
+    
 
     return true;
 }
@@ -153,6 +203,35 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<CollisionPackage::PlaneCollider_Component>
         (grass, CollisionPackage::PlaneCollider_Component{});
+
+
+    auto foodSpot = entity_registry->create();
+    entity_registry->emplace<Transform_Component>
+        (foodSpot, Transform_Component{
+
+                { 0.0f, 0.0f, -35.0f },
+                0.0f, 0.0f,
+                { 1, 1, 1 }
+            });
+
+    entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+        (foodSpot, CollisionPackage::PhysicsObject_Component{});
+
+    eeng::AABB a;
+    a.max = { 10,10,10 };
+    a.min = { 0,0,0 };
+    entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
+        (foodSpot, CollisionPackage::PhysicsCollider_Component{
+            true,
+            a
+            
+        });
+
+    entity_registry->emplace<Tag_Component>
+        (foodSpot, Tag_Component{
+            {"food"}
+            });
+
 
     for (int i = 0; i < 1; i++) {
 
@@ -201,7 +280,7 @@ void Game::BuildGameObjects() {
 
         entity_registry->emplace<Tag_Component>
             (horse, Tag_Component{
-                "horse"
+                {"horse"}
                 });
 
  
@@ -301,6 +380,9 @@ void Game::BuildGameObjects() {
     // build character 3 GO
     auto playerCharacter = entity_registry->create();
 
+    entity_registry->emplace<UI_TextBox_Component>
+        (playerCharacter, UI_TextBox_Component{"hello wolrd"});
+
     entity_registry->emplace<Transform_Component>
         (playerCharacter, Transform_Component{
             
@@ -380,7 +462,7 @@ void Game::BuildGameObjects() {
 
     entity_registry->emplace<Tag_Component>
         (playerCharacter, Tag_Component{
-            "player"
+            {"player"}
             });
     
 
@@ -419,6 +501,9 @@ void Game::BuildGameObjects() {
 
     
 
+    
+
+    
 
 
 }
@@ -507,6 +592,7 @@ void Game::renderUI()
     // Begin game info ImGui window
     ImGui::Begin("Game Info");
 
+    ImGui::Text("%i", questLineState);
 
 
     ImGui::Text("Drawcall count %i", drawcallCount);
@@ -586,6 +672,26 @@ void Game::destroy()
 #pragma region systems
 
 
+void Game::Input_System(InputManagerPtr input, EventP::EventQueue& event_dispatcher) {
+
+    using Key = eeng::InputManager::Key;
+
+    
+    
+    if (input->IsKeyPressed(Key::E)) {
+        if (!keyIsPressedMap[Key::E]) {
+            keyIsPressedMap[Key::E] = true;
+            auto arg = new EventP::EventArgs{"EVENT_KeyStartPress_E"};
+            event_dispatcher.EnqueueEvent(arg);
+        }
+    }
+    else if (keyIsPressedMap[Key::E]) {    
+        keyIsPressedMap[Key::E] = false;
+    }
+
+    // add other keys here
+
+}
 
 
 
@@ -866,8 +972,6 @@ void Game::imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_reg
 }
 
 
-
-
 void Game::imGui_W_Transform_System() {
     auto view = entity_registry->view<Transform_Component, IMGUI_WorldPos_Window_Component>();
 
@@ -979,18 +1083,22 @@ void Game::imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry) {
     
     for (auto entity : view) {
         auto& transform = view.get<Transform_Component>(entity);
-        auto& tag = view.get<Tag_Component>(entity);
+        auto& tags = view.get<Tag_Component>(entity);
         auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
         
 
         if (!ui_window._isOn)
             return;
 
-        auto* str = &tag.tag;
+        
 
         auto lambda = [&]() {
             if (ImGui::CollapsingHeader("Tag", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::InputText("Tag", (char*)str->c_str(), str->capacity() + 1);
+                for (auto& tag : tags.tags) {
+                    ImGui::Text(tag.c_str());
+                }
+                
+                //ImGui::InputText("Tag", (char*)str->c_str(), str->capacity() + 1);
             }
         };
 
@@ -1001,6 +1109,31 @@ void Game::imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry) {
 
     }
 }
+
+void Game::imGui_W_TextBox_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto view = entity_registry->view<UI_TextBox_Component, IMGUI_WorldPos_Window_Component>();
+
+    for (auto entity : view) {
+        auto& ui_window = view.get<IMGUI_WorldPos_Window_Component>(entity);
+        auto& textbox = view.get<UI_TextBox_Component>(entity);
+
+        if (!ui_window._isOn)
+            return;
+
+
+
+        auto lambda = [&]() {
+            ImGui::Text(textbox.text.c_str());
+            };
+
+        imGui_Base_WorldPositionUI(entity, lambda);
+        //imGui_Base_WorldPositionUI(transform, entity, lambda);
+
+
+
+    }
+}
+
 
 
 bool Game::imGui_Prepare_WorldToScreen(glm::vec3 worldPos, glm::ivec2& screenPos_Out) {
@@ -1024,6 +1157,8 @@ bool Game::imGui_Prepare_WorldToScreen(glm::vec3 worldPos, glm::ivec2& screenPos
 
     return false;
 }
+
+
 
 
 void Game::imGui_Base_WorldPositionUI(entt::entity& entity, const std::function<void()>& func) {
@@ -1139,6 +1274,8 @@ void Game::UI_Systems() {
     if (show_ModifyObjectUI) {
         imGui_WorldToScreen_System(entity_registry);
 
+        imGui_W_TextBox_System(entity_registry);
+
         imGui_W_Transform_System();
 
         imGui_W_Animation_Controller_System(entity_registry);
@@ -1151,7 +1288,8 @@ void Game::updateSystems(float time,
     float deltaTime,
     InputManagerPtr input) {
 
-   
+    Input_System(input, event_dispatcher);
+
     LookAt_System(input);
 
     player_System(deltaTime, input);
@@ -1208,3 +1346,5 @@ void Game::renderPassSystems(float time) {
     CollisionPackage::DebugColliders_System(entity_registry, shapeRenderer);
 
 }
+
+

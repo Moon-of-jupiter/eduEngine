@@ -111,16 +111,29 @@ private:
     // Stats
     int drawcallCount = 0;
 
+    enum QuestLine
+    {
+        GetGrass,
+        GoToHorse,
+        FeedHorse,
+        Done,
+    };
+
+    QuestLine questLineState = GetGrass;
 
 
+    std::map<eeng::InputManager::Key, bool> keyIsPressedMap;
 
     void BuildGameObjects();
+
+
+
 
     
 #pragma region Systems
 
 
-
+    void Input_System(InputManagerPtr input, EventP::EventQueue& event_dispatcher);
 
     void velocity_System(float deltaTime);
 
@@ -152,8 +165,11 @@ private:
 
 
     void imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_registry);
+
+
     
     void imGui_W_Transform_System();
+    void imGui_W_TextBox_System(std::shared_ptr<entt::registry> entity_registry);
     void imGui_W_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry);
     void imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry);
 
@@ -161,7 +177,6 @@ private:
 
     void imGui_Base_WorldPositionUI(Transform_Component& transform, entt::entity& entity, const std::function<void()>& func);
     void imGui_Base_WorldPositionUI(entt::entity& entity, const std::function<void()>& func);
-
 
 
     void Transform_DebugView();

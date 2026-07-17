@@ -31,7 +31,9 @@ public:
 
 struct Tag_Component {
 public:
-    std::string tag;
+    std::unordered_set<std::string> tags;
+
+    
 };
 
 
@@ -119,11 +121,19 @@ struct Camera_Component {
 
 };
 
+
+
 struct IMGUI_WorldPos_Window_Component {
     std::string _name{ "gameObject" };
     bool _isOn{ true };
     
+    
 };
+
+struct UI_TextBox_Component {
+    std::string text = "text";
+};
+
 
 struct UI_ModifyObject_Component {
     std::string text = "gameObject";
@@ -150,7 +160,7 @@ struct LookAtOrbit_Component {
     //float pitch = -glm::pi<float>() / 8;    // Vertical angle (radians)
 
     glm::ivec2 _mouse_xy_prev{0,0};
-    float sensitivity = 0.005f;;
+    float sensitivity = 0.005f;
 };
 
 
