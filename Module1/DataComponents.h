@@ -7,25 +7,57 @@
 #include "ForwardRenderer.hpp"
 #include "ShapeRenderer.hpp"
 #include "unordered_set"
+#include "map"
 
 
 
 struct Transform_Component {
+private:
+    glm::vec3   _position;
+    float       _pitch;
+    float       _yaw;
+    glm::vec3   _scale;
+
 public:
-    /*glm::mat4 _world_transform = glm_aux::TRS(
-        {0,0,0},
-        0.0f, { 0, 1, 0 },
-        { 1, 1, 1 });  */  
+
+    Transform_Component(
+        glm::vec3   position    = glm_aux::vec3_000,
+        float       pitch       = 0, 
+        float       yaw         = 0, 
+        glm::vec3   scale       = glm_aux::vec3_111
+    ) : 
+
+        _position(position), 
+        _pitch(pitch), 
+        _yaw(yaw),
+        _scale(scale)
+    {}
+
 
     glm::mat4 GetTransform() {
         return  glm_aux::T(_position) *
-            glm_aux::R(_yaw, _pitch) *
-            glm_aux::S(_scale);
+                glm_aux::R(_yaw, _pitch) *
+                glm_aux::S(_scale);
     }
-    glm::vec3 _position = glm_aux::vec3_000;
-    float _yaw = 0;
-    float _pitch = 0;
-    glm::vec3 _scale = glm_aux::vec3_111;
+    
+#pragma region Public Feild Access
+
+    // position
+    auto Position()       ->       glm::vec3&   { return _position; }
+    auto Position() const -> const glm::vec3&   { return _position; }
+
+    // rotation
+    auto Pitch()          ->       float&       { return _pitch; }
+    auto Pitch()    const -> const float&       { return _pitch; }
+
+    auto Yaw()            ->       float&       { return _yaw; }
+    auto Yaw()      const -> const float&       { return _yaw; }
+
+    // scale
+    auto Scale()          ->       glm::vec3&   { return _scale; }
+    auto Scale()    const -> const glm::vec3&   { return _scale; }
+
+#pragma endregion
 
 };
 
@@ -62,8 +94,16 @@ struct PlayerController_Component {
 
 
 struct Animation_FromSpeed_Component {
-    float speed_mult;
+    float speed_mult = 1;
+    float _lerp_strength = 1.0f;
+    float _current_lerp = 0;
     
+
+};
+
+struct Animation_FromQuest_Component {
+    std::map<int, int> _animation_by_queststep;
+
 };
 
 //struct NpcController_Component {

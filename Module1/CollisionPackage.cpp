@@ -385,7 +385,7 @@ namespace CollisionPackage {
 
 
 		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, Intersection& collision) {
-			transform._position += collision.normal * collision.depth;
+			transform.Position() += collision.normal * collision.depth;
 
 			float dot = glm::dot(velocity._velocity, collision.normal);
 

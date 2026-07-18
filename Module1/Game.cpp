@@ -242,7 +242,7 @@ void Game::BuildGameObjects() {
             (horse, Transform_Component{
 
                     { 30.0f, 0.0f, -35.0f },
-                    35.0f, 0.0f,
+                    0.0f, 35.0f,
                     { 0.01f, 0.01f, 0.01f }
                 });
 
@@ -276,6 +276,16 @@ void Game::BuildGameObjects() {
                 0, 1,
                 false,
                 0
+                });
+
+        entity_registry->emplace<Animation_FromQuest_Component>
+            (horse, Animation_FromQuest_Component{
+                {
+                    {0,11},
+                    {1,12},
+                    {2,10},
+                    {3,3},
+                }
                 });
 
         entity_registry->emplace<Tag_Component>
@@ -361,7 +371,7 @@ void Game::BuildGameObjects() {
 
         entity_registry->emplace<Animation_FromSpeed_Component>
             (c2, Animation_FromSpeed_Component{
-                1
+                1, 0.5f
                 });
 
 
@@ -410,16 +420,38 @@ void Game::BuildGameObjects() {
 
 
 
-   entity_registry->emplace<Animation_Basic_Component>
+   /*entity_registry->emplace<Animation_Basic_Component>
         (playerCharacter, Animation_Basic_Component{
             1,1
-            });
+            });*/
    
+    entity_registry->emplace<Animation_1dBlendSpace_Component>
+        (playerCharacter, Animation_1dBlendSpace_Component{
+            {
+                BlendSpaceElement {1,0},
+                BlendSpaceElement {2,2},
+                BlendSpaceElement {2,5},
+                BlendSpaceElement {3,6},
+            }
+
+            });
+
+    entity_registry->emplace<Animation_FromSpeed_Component>
+        (playerCharacter, Animation_FromSpeed_Component{
+            1, 0.8f
+            });
+
+    entity_registry->emplace<Animation_FromQuest_Component>
+        (playerCharacter, Animation_FromQuest_Component{
+            {
+                {2,4}
+            }
+            });
 
     entity_registry->emplace<Animation_Component>
         (playerCharacter, Animation_Component{
             2, 4,
-            true,
+            false,
             0.5,
             eeng::AnimationBranchDesc{
                 "mixamorig:Spine2",
@@ -564,7 +596,7 @@ void Game::render(
 #pragma region RenderPass
 
     // Begin rendering pass
-    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera_transform._position);
+    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera_transform.Position());
     
     
 
@@ -592,8 +624,18 @@ void Game::renderUI()
     // Begin game info ImGui window
     ImGui::Begin("Game Info");
 
-    ImGui::Text("%i", questLineState);
 
+
+    
+
+
+
+    {
+        ImGui::Separator();
+        ImGui::Text("Quest, step %i", questLineState);
+        ImGui::Text(questlineTipsMap[questLineState].c_str());
+        ImGui::Separator();
+    }
 
     ImGui::Text("Drawcall count %i", drawcallCount);
 
@@ -646,7 +688,7 @@ void Game::imGui_Animation_Selector(std::shared_ptr<eeng::RenderableMesh> mesh, 
         for (int i = 1; i < mesh->getNbrAnimations(); i++)
         {
             const bool isSelected = (curAnimIndex == i);
-            const auto label = mesh->getAnimationName(i) + "##" + std::to_string(i) + id;
+            const auto label = std::to_string(i) + ":" + mesh->getAnimationName(i) + "##" + std::to_string(i) + id;
             if (ImGui::Selectable(label.c_str(), isSelected))
                 curAnimIndex = i;
             if (isSelected)
@@ -707,7 +749,7 @@ void Game::velocity_System(float deltaTime) {
         auto& transform = view.get<Transform_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        transform._position += velocity._velocity * deltaTime;
+        transform.Position() += velocity._velocity * deltaTime;
     }
 
     
@@ -781,14 +823,14 @@ void Game::LookAt_System(InputManagerPtr input) {
         lookAt._mouse_xy_prev = mouse_xy;
 
         // Update camera rotation from mouse movement
-        transform._yaw += mouse_xy_diff.x * lookAt.sensitivity;
-        transform._pitch += mouse_xy_diff.y * lookAt.sensitivity;
-        transform._pitch = glm::clamp(transform._pitch, -glm::radians(89.0f), 0.0f);
+        transform.Yaw()     += mouse_xy_diff.x * lookAt.sensitivity;
+        transform.Pitch()   += mouse_xy_diff.y * lookAt.sensitivity;
+        transform.Pitch()   = glm::clamp(transform.Pitch(), -glm::radians(89.0f), 0.0f);
 
         // Update camera position
-        const auto toTarget = glm_aux::T(glm::vec3(target_transform._position));
+        const auto toTarget = glm_aux::T(glm::vec3(target_transform.Position()));
 
-        auto t = toTarget * glm_aux::R(transform._yaw, transform._pitch) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
+        auto t = toTarget * glm_aux::R(transform.Yaw(), transform.Pitch()) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
         
         
         //const glm::vec4 targetPos = target_transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -797,7 +839,7 @@ void Game::LookAt_System(InputManagerPtr input) {
 
         //transform._world_transform = toTarget * transform._world_transform;
 
-        transform._position = t[3];
+        transform.Position() = t[3];
 
     }
 
@@ -824,7 +866,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         auto& steering = view.get<SteeringBehavior_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        auto pos = transform._position;
+        auto pos = transform.Position();
         float distanceToCenter = glm::length(pos);
         if (distanceToCenter > maxRadius) {
             steering._acceleration -= glm::normalize(pos)* (distanceToCenter - maxRadius) * radiusForce;
@@ -847,7 +889,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         steering._left = glm::cross(steering._forward, glm_aux::vec3_010);
         
 
-        steering._refPos = transform._position;//glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
+        steering._refPos = transform.Position();//glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
     }
 
 }
@@ -936,7 +978,7 @@ void Game::RoateToDriection_System() {
         if (std::isnan(angle))
             continue;
 
-        transform._yaw = angle;
+        transform.Yaw() = angle;
 
     }
 }
@@ -957,7 +999,7 @@ void Game::imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_reg
 
         glm::ivec2 window_cords;
 
-        if (!imGui_Prepare_WorldToScreen(transform._position, window_cords))
+        if (!imGui_Prepare_WorldToScreen(transform.Position(), window_cords))
             continue;
 
         
@@ -987,18 +1029,18 @@ void Game::imGui_W_Transform_System() {
             return;
 
         // get world pos
-        worldPos[0] = transform._position.x;
-        worldPos[1] = transform._position.y;
-        worldPos[2] = transform._position.z;
+        worldPos[0] = transform.Position().x;
+        worldPos[1] = transform.Position().y;
+        worldPos[2] = transform.Position().z;
 
         // get rotation
-        rotation[0] = transform._yaw;
-        rotation[1] = transform._pitch;
+        rotation[0] = transform.Yaw();
+        rotation[1] = transform.Pitch();
 
         // get scale
-        scale[0] = transform._scale.x;
-        scale[1] = transform._scale.y;
-        scale[2] = transform._scale.z;
+        scale[0] = transform.Scale().x;
+        scale[1] = transform.Scale().y;
+        scale[2] = transform.Scale().z;
 
         auto lambda = [&]() {
             if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1006,7 +1048,7 @@ void Game::imGui_W_Transform_System() {
                 //  world pos
                 if (ImGui::InputFloat3("World pos", worldPos/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform._position = {
+                    transform.Position() = {
                         worldPos[0],
                         worldPos[1],
                         worldPos[2]
@@ -1016,13 +1058,13 @@ void Game::imGui_W_Transform_System() {
                 //  rotation
                 if (ImGui::InputFloat2("Yaw, Pitch", rotation/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform._yaw = rotation[0];
-                    transform._pitch = rotation[1];
+                    transform.Yaw() = rotation[0];
+                    transform.Pitch() = rotation[1];
                 }
                 //  scale
                 if (ImGui::InputFloat3("Scale", scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform._scale = {
+                    transform.Scale() = {
                         scale[0],
                         scale[1],
                         scale[2]
@@ -1202,13 +1244,30 @@ void Game::Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_regis
 
         float speed = glm::length(velocity._velocity);
         
-        aBlendSpace.value = speed * aBySpeed.speed_mult;
+        aBySpeed._current_lerp = aBySpeed._current_lerp * aBySpeed._lerp_strength + speed * (1 - aBySpeed._lerp_strength);
+
+        aBlendSpace.value = aBySpeed._current_lerp * aBySpeed.speed_mult;
 
 
     }
 
 }
 
+void Game::Animation_ByQuest_System(std::shared_ptr<entt::registry> entity_registry, int questStep) {
+    auto view = entity_registry->view <Animation_FromQuest_Component, Animation_Component>();
+
+    for (auto entity : view) {
+        auto& aByQuest = view.get<Animation_FromQuest_Component>(entity);
+        auto& aAnimation = view.get<Animation_Component>(entity);
+        
+
+        if (!aByQuest._animation_by_queststep.contains(questStep))
+            continue;
+
+        aAnimation.baseAnimation = aByQuest._animation_by_queststep[questStep];
+        aAnimation.blendFactor = 0;
+    }
+}
 
 
 void Game::Transform_DebugView() {
@@ -1308,7 +1367,7 @@ void Game::updateSystems(float time,
     
     Animation_Systems::animation_Basic_System(entity_registry, deltaTime);
     Animation_Systems::animation_1DBlendSpace_System(entity_registry, deltaTime);
-
+    Animation_ByQuest_System(entity_registry, questLineState);
 
     // update transform with velocity
     RoateToDriection_System();

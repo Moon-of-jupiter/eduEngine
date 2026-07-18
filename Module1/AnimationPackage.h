@@ -26,6 +26,57 @@ struct Animation_Component {
 	float time1 = 0;
 };
 
+struct Animation_Component_New {
+private:
+	int _baseAnimation;
+	int _secondaryAnimation;
+
+	bool _useLayering;
+
+	float _blendFactor;
+	eeng::AnimationBranchDesc _filter;
+
+	float _time0 = 0;
+	float _time1 = 0;
+
+public:
+	Animation_Component_New
+	(
+		int baseAnimation		= 0,
+		int secondaryAnimation	= 0,
+
+		bool useLayering		= true,
+		float blendFactor		= 0.0f,
+
+		eeng::AnimationBranchDesc filter,
+
+		float startingTime_0	= 0,
+		float startingTime_1	= 0
+
+	): 
+		_baseAnimation(baseAnimation),
+		_secondaryAnimation(secondaryAnimation),
+
+		_useLayering(useLayering),
+		_blendFactor(blendFactor),
+
+		_filter(filter),
+
+		_time0(startingTime_0),
+		_time1(startingTime_1)
+	{}
+
+
+	// animation
+	auto BaseAnimation()			  ->		int&	{ return _baseAnimation; }
+	auto BaseAnimation()		const -> const	int&	{ return _baseAnimation; }
+
+	auto SecondaryAnimation()		  ->		int&	{ return _secondaryAnimation; }
+	auto SecondaryAnimation()	const -> const	int&	{ return _secondaryAnimation; }
+
+	// other!!
+};
+
 struct Animation_Basic_Component {
 	float speedMult0 = 1.0f;
 	float speedMult1 = 1.0f;

@@ -121,6 +121,13 @@ private:
 
     QuestLine questLineState = GetGrass;
 
+    std::map < QuestLine, std::string> questlineTipsMap{
+        {GetGrass,  "Make your way to to grass patch"},
+        {GoToHorse, "Make your way to the horse"},
+        {FeedHorse, "Press E to feed the horse"},
+        {Done,      "Quest Complete"},
+    };
+
 
     std::map<eeng::InputManager::Key, bool> keyIsPressedMap;
 
@@ -161,6 +168,8 @@ private:
 
 
     void Animation_BySpeed_System(std::shared_ptr<entt::registry> entity_registry);
+    void Animation_ByQuest_System(std::shared_ptr<entt::registry> entity_registry, int questStep);
+
     void imGui_Animation_Selector(std::shared_ptr<eeng::RenderableMesh> mesh, int& currentIndex, std::string title, std::string id);
 
 
