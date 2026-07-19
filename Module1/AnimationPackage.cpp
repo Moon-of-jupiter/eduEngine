@@ -23,22 +23,22 @@ void Animation_Systems::render_System(std::shared_ptr<entt::registry> entity_reg
         if (entity_registry->all_of<Animation_Component>(entity)) {
             auto& animation = animated_view.get<Animation_Component>(entity);
 
-            if (animation.useLayering) {
+            if (animation.useLayering()) {
                 mesh._renderable_mesh->animateBlend(
-                    animation.baseAnimation,
-                    animation.secondaryAnimation,
-                    animation.time0,
-                    animation.time1,
-                    animation.filter
+                    animation.baseAnimation(),
+                    animation.secondaryAnimation(),
+                    animation.time0(),
+                    animation.time1(),
+                    animation.layerdFilterBone()
                 );
             }
             else {
                 mesh._renderable_mesh->animateBlend(
-                    animation.baseAnimation,
-                    animation.secondaryAnimation,
-                    animation.time0,
-                    animation.time1,
-                    animation.blendFactor
+                    animation.baseAnimation(),
+                    animation.secondaryAnimation(),
+                    animation.time0(),
+                    animation.time1(),
+                    animation.blendFactor()
                 );
             }
         }
@@ -66,8 +66,8 @@ void Animation_Systems::animation_Basic_System(std::shared_ptr<entt::registry> e
         auto& animation = view.get<Animation_Component>(entity);
         auto& animation_updator = view.get<Animation_Basic_Component>(entity);
 
-        animation.time0 += animation_updator.speedMult0 * dT;
-        animation.time1 += animation_updator.speedMult1 * dT;
+        animation.time0() += animation_updator.speedMult0 * dT;
+        animation.time1() += animation_updator.speedMult1 * dT;
     }
 
 }
@@ -103,14 +103,14 @@ void Animation_Systems::animation_1DBlendSpace_System(std::shared_ptr<entt::regi
 
         float blend = (value - animationA.value) / (animationB.value - animationA.value);
 
-        animation.time0 = animationA.time;
-        animation.time1 = animationB.time;
+        animation.time0() = animationA.time;
+        animation.time1() = animationB.time;
 
-        animation.baseAnimation = animationA.animation;
-        animation.secondaryAnimation = animationB.animation;
+        animation.baseAnimation() = animationA.animation;
+        animation.secondaryAnimation() = animationB.animation;
 
-        animation.blendFactor = blend;
-        animation.useLayering = false;
+        animation.blendFactor() = blend;
+        animation.useLayering() = false;
     }
 
 }
@@ -131,22 +131,22 @@ void Animation_Systems::debug_mesh_bones_System(std::shared_ptr<entt::registry> 
         if (entity_registry->all_of<Animation_Component>(entity)) {
             auto& animation = animated_view.get<Animation_Component>(entity);
 
-            if (animation.useLayering) {
+            if (animation.useLayering()) {
                 mesh._renderable_mesh->animateBlend(
-                    animation.baseAnimation,
-                    animation.secondaryAnimation,
-                    animation.time0,
-                    animation.time1,
-                    animation.filter
+                    animation.baseAnimation(),
+                    animation.secondaryAnimation(),
+                    animation.time0(),
+                    animation.time1(),
+                    animation.layerdFilterBone()
                 );
             }
             else {
                 mesh._renderable_mesh->animateBlend(
-                    animation.baseAnimation,
-                    animation.secondaryAnimation,
-                    animation.time0,
-                    animation.time1,
-                    animation.blendFactor
+                    animation.baseAnimation(),
+                    animation.secondaryAnimation(),
+                    animation.time0(),
+                    animation.time1(),
+                    animation.blendFactor()
                 );
             }
         }

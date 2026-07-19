@@ -596,7 +596,7 @@ void Game::render(
 #pragma region RenderPass
 
     // Begin rendering pass
-    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera_transform.Position());
+    forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera_transform.position());
     
     
 
@@ -749,7 +749,7 @@ void Game::velocity_System(float deltaTime) {
         auto& transform = view.get<Transform_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        transform.Position() += velocity._velocity * deltaTime;
+        transform.position() += velocity._velocity * deltaTime;
     }
 
     
@@ -823,14 +823,14 @@ void Game::LookAt_System(InputManagerPtr input) {
         lookAt._mouse_xy_prev = mouse_xy;
 
         // Update camera rotation from mouse movement
-        transform.Yaw()     += mouse_xy_diff.x * lookAt.sensitivity;
-        transform.Pitch()   += mouse_xy_diff.y * lookAt.sensitivity;
-        transform.Pitch()   = glm::clamp(transform.Pitch(), -glm::radians(89.0f), 0.0f);
+        transform.yaw()     += mouse_xy_diff.x * lookAt.sensitivity;
+        transform.pitch()   += mouse_xy_diff.y * lookAt.sensitivity;
+        transform.pitch()   = glm::clamp(transform.pitch(), -glm::radians(89.0f), 0.0f);
 
         // Update camera position
-        const auto toTarget = glm_aux::T(glm::vec3(target_transform.Position()));
+        const auto toTarget = glm_aux::T(glm::vec3(target_transform.position()));
 
-        auto t = toTarget * glm_aux::R(transform.Yaw(), transform.Pitch()) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
+        auto t = toTarget * glm_aux::R(transform.yaw(), transform.pitch()) * glm_aux::T(glm::vec3(0.0f, 0.0f, lookAt._distance));
         
         
         //const glm::vec4 targetPos = target_transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -839,7 +839,7 @@ void Game::LookAt_System(InputManagerPtr input) {
 
         //transform._world_transform = toTarget * transform._world_transform;
 
-        transform.Position() = t[3];
+        transform.position() = t[3];
 
     }
 
@@ -866,7 +866,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         auto& steering = view.get<SteeringBehavior_Component>(entity);
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         
-        auto pos = transform.Position();
+        auto pos = transform.position();
         float distanceToCenter = glm::length(pos);
         if (distanceToCenter > maxRadius) {
             steering._acceleration -= glm::normalize(pos)* (distanceToCenter - maxRadius) * radiusForce;
@@ -889,7 +889,7 @@ void  Game::SteeringBehavior_System(float deltaTime) {
         steering._left = glm::cross(steering._forward, glm_aux::vec3_010);
         
 
-        steering._refPos = transform.Position();//glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
+        steering._refPos = transform.position();//glm::vec3(transform._world_transform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) + velocity._velocity;
     }
 
 }
@@ -978,7 +978,7 @@ void Game::RoateToDriection_System() {
         if (std::isnan(angle))
             continue;
 
-        transform.Yaw() = angle;
+        transform.yaw() = angle;
 
     }
 }
@@ -999,7 +999,7 @@ void Game::imGui_WorldToScreen_System(std::shared_ptr<entt::registry> entity_reg
 
         glm::ivec2 window_cords;
 
-        if (!imGui_Prepare_WorldToScreen(transform.Position(), window_cords))
+        if (!imGui_Prepare_WorldToScreen(transform.position(), window_cords))
             continue;
 
         
@@ -1029,18 +1029,18 @@ void Game::imGui_W_Transform_System() {
             return;
 
         // get world pos
-        worldPos[0] = transform.Position().x;
-        worldPos[1] = transform.Position().y;
-        worldPos[2] = transform.Position().z;
+        worldPos[0] = transform.position().x;
+        worldPos[1] = transform.position().y;
+        worldPos[2] = transform.position().z;
 
         // get rotation
-        rotation[0] = transform.Yaw();
-        rotation[1] = transform.Pitch();
+        rotation[0] = transform.yaw();
+        rotation[1] = transform.pitch();
 
         // get scale
-        scale[0] = transform.Scale().x;
-        scale[1] = transform.Scale().y;
-        scale[2] = transform.Scale().z;
+        scale[0] = transform.scale().x;
+        scale[1] = transform.scale().y;
+        scale[2] = transform.scale().z;
 
         auto lambda = [&]() {
             if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1048,7 +1048,7 @@ void Game::imGui_W_Transform_System() {
                 //  world pos
                 if (ImGui::InputFloat3("World pos", worldPos/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform.Position() = {
+                    transform.position() = {
                         worldPos[0],
                         worldPos[1],
                         worldPos[2]
@@ -1058,13 +1058,13 @@ void Game::imGui_W_Transform_System() {
                 //  rotation
                 if (ImGui::InputFloat2("Yaw, Pitch", rotation/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform.Yaw() = rotation[0];
-                    transform.Pitch() = rotation[1];
+                    transform.yaw() = rotation[0];
+                    transform.pitch() = rotation[1];
                 }
                 //  scale
                 if (ImGui::InputFloat3("Scale", scale/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
 
-                    transform.Scale() = {
+                    transform.scale() = {
                         scale[0],
                         scale[1],
                         scale[2]
@@ -1097,13 +1097,13 @@ void Game::imGui_W_Animation_Controller_System(std::shared_ptr<entt::registry> e
             if (ImGui::CollapsingHeader("Animations", ImGuiTreeNodeFlags_DefaultOpen)){
                 ImGui::Separator();
                 ImGui::Text("Animations");
-                imGui_Animation_Selector(mesh._renderable_mesh, animation.baseAnimation, "A", "A_Animation_Selection");
-                imGui_Animation_Selector(mesh._renderable_mesh, animation.secondaryAnimation, "B", "B_Animation_Selection");
+                imGui_Animation_Selector(mesh._renderable_mesh, animation.baseAnimation(), "A", "A_Animation_Selection");
+                imGui_Animation_Selector(mesh._renderable_mesh, animation.secondaryAnimation(), "B", "B_Animation_Selection");
 
                 ImGui::Separator();
                 ImGui::Text("Blending");
-                ImGui::Checkbox("Use Layering", &animation.useLayering);
-                ImGui::SliderFloat("Blend", &animation.blendFactor, 0, 1);
+                ImGui::Checkbox("Use Layering", &animation.useLayering());
+                ImGui::SliderFloat("Blend", &animation.blendFactor(), 0, 1);
 
                 ImGui::Separator();
                 ImGui::Text("Speed");
@@ -1264,8 +1264,8 @@ void Game::Animation_ByQuest_System(std::shared_ptr<entt::registry> entity_regis
         if (!aByQuest._animation_by_queststep.contains(questStep))
             continue;
 
-        aAnimation.baseAnimation = aByQuest._animation_by_queststep[questStep];
-        aAnimation.blendFactor = 0;
+        aAnimation.baseAnimation() = aByQuest._animation_by_queststep[questStep];
+        aAnimation.blendFactor() = 0;
     }
 }
 

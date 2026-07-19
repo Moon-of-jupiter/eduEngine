@@ -13,20 +13,20 @@ struct RenderableMesh_Component {
 	eeng::AABB _tight_geometry;
 };
 
+//struct Animation_Component {
+//	int baseAnimation = 0;
+//	int secondaryAnimation = 0;
+//
+//	bool useLayering = false;
+//	
+//	float blendFactor = 0.0f;
+//	eeng::AnimationBranchDesc filter;
+//
+//	float time0 = 0;
+//	float time1 = 0;
+//};
+
 struct Animation_Component {
-	int baseAnimation = 0;
-	int secondaryAnimation = 0;
-
-	bool useLayering = false;
-	
-	float blendFactor = 0.0f;
-	eeng::AnimationBranchDesc filter;
-
-	float time0 = 0;
-	float time1 = 0;
-};
-
-struct Animation_Component_New {
 private:
 	int _baseAnimation;
 	int _secondaryAnimation;
@@ -40,18 +40,45 @@ private:
 	float _time1 = 0;
 
 public:
-	Animation_Component_New
-	(
-		int baseAnimation		= 0,
-		int secondaryAnimation	= 0,
+#pragma region Constructors
 
-		bool useLayering		= true,
-		float blendFactor		= 0.0f,
+
+
+	Animation_Component
+	(
+		int baseAnimation = 0,
+		int secondaryAnimation = 0,
+
+		bool useLayering = true,
+		float blendFactor = 0.0f,
+
+		float startingTime_0 = 0,
+		float startingTime_1 = 0
+
+	) :
+		_baseAnimation(baseAnimation),
+		_secondaryAnimation(secondaryAnimation),
+
+		_useLayering(useLayering),
+		_blendFactor(blendFactor),
+
+		_time0(startingTime_0),
+		_time1(startingTime_1)
+	{}
+
+
+	Animation_Component
+	(
+		int baseAnimation,
+		int secondaryAnimation,
+
+		bool useLayering,
+		float blendFactor,
 
 		eeng::AnimationBranchDesc filter,
 
-		float startingTime_0	= 0,
-		float startingTime_1	= 0
+		float startingTime_0 = 0,
+		float startingTime_1 = 0
 
 	): 
 		_baseAnimation(baseAnimation),
@@ -66,15 +93,36 @@ public:
 		_time1(startingTime_1)
 	{}
 
+#pragma endregion
+
 
 	// animation
-	auto BaseAnimation()			  ->		int&	{ return _baseAnimation; }
-	auto BaseAnimation()		const -> const	int&	{ return _baseAnimation; }
+	auto baseAnimation()			  ->		int&	{ return _baseAnimation; }
+	auto baseAnimation()		const -> const	int&	{ return _baseAnimation; }
 
-	auto SecondaryAnimation()		  ->		int&	{ return _secondaryAnimation; }
-	auto SecondaryAnimation()	const -> const	int&	{ return _secondaryAnimation; }
+	auto secondaryAnimation()		  ->		int&	{ return _secondaryAnimation; }
+	auto secondaryAnimation()	const -> const	int&	{ return _secondaryAnimation; }
 
-	// other!!
+	// layering
+	auto useLayering()				  ->		bool&	{ return _useLayering; }
+	auto useLayering()			const -> const	bool&	{ return _useLayering; }
+
+	auto layerdFilterBone()			  ->		eeng::AnimationBranchDesc& { return _filter; }
+	auto layerdFilterBone()		const -> const	eeng::AnimationBranchDesc& { return _filter; }
+
+	// blending
+	auto blendFactor()				  ->		float&	{ return _blendFactor; }
+	auto blendFactor()			const -> const	float&	{ return _blendFactor; }
+
+
+	// time
+	auto time0()					  ->		float&	{ return _time0; }
+	auto time0()				const -> const	float&	{ return _time0; }
+	
+	auto time1()					  ->		float&	{ return _time1; }
+	auto time1()				const -> const	float&	{ return _time1; }
+
+
 };
 
 struct Animation_Basic_Component {

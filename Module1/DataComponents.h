@@ -43,19 +43,19 @@ public:
 #pragma region Public Feild Access
 
     // position
-    auto Position()       ->       glm::vec3&   { return _position; }
-    auto Position() const -> const glm::vec3&   { return _position; }
+    auto position()       ->       glm::vec3&   { return _position; }
+    auto position() const -> const glm::vec3&   { return _position; }
 
     // rotation
-    auto Pitch()          ->       float&       { return _pitch; }
-    auto Pitch()    const -> const float&       { return _pitch; }
+    auto pitch()          ->       float&       { return _pitch; }
+    auto pitch()    const -> const float&       { return _pitch; }
 
-    auto Yaw()            ->       float&       { return _yaw; }
-    auto Yaw()      const -> const float&       { return _yaw; }
+    auto yaw()            ->       float&       { return _yaw; }
+    auto yaw()      const -> const float&       { return _yaw; }
 
     // scale
-    auto Scale()          ->       glm::vec3&   { return _scale; }
-    auto Scale()    const -> const glm::vec3&   { return _scale; }
+    auto scale()          ->       glm::vec3&   { return _scale; }
+    auto scale()    const -> const glm::vec3&   { return _scale; }
 
 #pragma endregion
 
