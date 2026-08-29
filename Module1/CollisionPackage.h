@@ -172,7 +172,7 @@ namespace CollisionPackage {
 
 	namespace CollisionHelpers {
 
-		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, Intersection& collision);
+		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, PhysicsObject_Component& physics, Intersection& collision);
 
 
 

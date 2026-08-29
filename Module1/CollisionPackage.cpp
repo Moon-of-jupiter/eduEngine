@@ -69,14 +69,14 @@ namespace CollisionPackage {
 
 
 	void PlaneColission_System(std::shared_ptr<entt::registry> entity_registry) {
-		auto view = entity_registry->view<Transform_Component, LinearVelocity_Component, PhysicsCollider_Component>();
+		auto view = entity_registry->view<Transform_Component, LinearVelocity_Component, PhysicsObject_Component, PhysicsCollider_Component>();
 		auto planeColliders = entity_registry->view<PlaneCollider_Component>();
 
 		for (auto entity : view) {
 			auto& collider =	view.get<PhysicsCollider_Component>(entity);
 			auto& transform =	view.get<Transform_Component>(entity);
 			auto& velocity =	view.get<LinearVelocity_Component>(entity);
-
+			auto& physicsObj = view.get<PhysicsObject_Component>(entity);
 
 			for (auto planeE : planeColliders) {
 				auto& planeC = planeColliders.get<PlaneCollider_Component>(planeE);
@@ -86,7 +86,7 @@ namespace CollisionPackage {
 				if (outIntersection.depth < 0)
 					continue;
 
-				CollisionHelpers::SolveCollision(transform, velocity, outIntersection);
+				CollisionHelpers::SolveCollision(transform, velocity, physicsObj, outIntersection);
 				
 			}
 		}
@@ -96,7 +96,7 @@ namespace CollisionPackage {
 	}
 
 	void DynamicColission_System(std::shared_ptr<entt::registry> entity_registry, EventP::EventQueue& eventDispatcher) {
-		auto view = entity_registry->view<Transform_Component, LinearVelocity_Component, PhysicsCollider_Component>();
+		auto view = entity_registry->view<Transform_Component, LinearVelocity_Component, PhysicsObject_Component, PhysicsCollider_Component>();
 		auto colliders_view = entity_registry->view<PhysicsCollider_Component>();
 
 		std::vector<Sphere*> sphere_list;
@@ -256,11 +256,12 @@ namespace CollisionPackage {
 
 				//eventDispatcher.EnqueueEvent(args);
 
-				if (entity_registry->all_of<Transform_Component>(entity) && entity_registry->all_of<LinearVelocity_Component>(entity)) {
+				if (entity_registry->all_of<LinearVelocity_Component, Transform_Component, PhysicsObject_Component>(entity) ) {
 					auto& transform = view.get<Transform_Component>(entity);
 					auto& velocity = view.get<LinearVelocity_Component>(entity);
+					auto& phys = view.get< PhysicsObject_Component>(entity);
 
-					CollisionHelpers::SolveCollision(transform, velocity, outIntersection);
+					CollisionHelpers::SolveCollision(transform, velocity, phys, outIntersection);
 					
 				}
 
@@ -384,14 +385,18 @@ namespace CollisionPackage {
 	namespace CollisionHelpers {
 
 
-		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, Intersection& collision) {
+		void SolveCollision(Transform_Component& transform, LinearVelocity_Component& velocity, PhysicsObject_Component& physics, Intersection& collision) {
 			transform.position() += collision.normal * collision.depth;
 
-			float dot = glm::dot(velocity._velocity, collision.normal);
+			float dot_v = glm::dot(velocity._velocity, collision.normal);
 
-			if(dot <= 0)
-				velocity._velocity -= dot * collision.normal;
+			if(dot_v <= 0)
+				velocity._velocity -= dot_v * collision.normal;
 
+			float dot_a = glm::dot(physics._acceleration, collision.normal);
+
+			if (dot_a <= 0)
+				physics._acceleration -= dot_a * collision.normal;
 
 		}
 

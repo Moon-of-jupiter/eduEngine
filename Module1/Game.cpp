@@ -25,9 +25,12 @@ bool Game::init()
     
     meshManager = std::make_shared<my_eeng::MeshManager>();
 
+
     meshManager->Load("grass_trees_merged_001", "assets/grass/grass_trees_merged.fbx");
     
     meshManager->Load("horse_001", "assets/Animals/Horse.fbx", {});
+    meshManager->Load("fox_001", "assets/Animals/Fox.fbx", {});
+
    
     meshManager->Load("character_001", "assets/Amy/Ch46_nonPBR.fbx",  { 
         "assets/Amy/idle.fbx",
@@ -87,7 +90,7 @@ bool Game::init()
     EventP::EventQueue::Listener eventLogger = [&](EventP::EventQueue::Event e) {
         eeng::Log(e->_event.c_str());
         
-
+        notificationMessages.AddEventMessage(*e);
      };
 
 
@@ -259,8 +262,8 @@ void Game::BuildGameObjects() {
         entity_registry->emplace<LinearVelocity_Component>
             (horse, LinearVelocity_Component{});
 
-        entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
-            (horse, CollisionPackage::PhysicsObject_Component{});
+        /*entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+            (horse, CollisionPackage::PhysicsObject_Component{});*/
 
         entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
             (horse, CollisionPackage::PhysicsCollider_Component{true });
@@ -295,6 +298,37 @@ void Game::BuildGameObjects() {
 
  
     }
+
+
+    // build horse GO
+    auto fox = entity_registry->create();
+
+    entity_registry->emplace<Transform_Component>
+        (fox, Transform_Component{
+
+                { 20.0f, 0.0f, 5.0f },
+                0.0f, 35.0f,
+                { 0.01f, 0.01f, 0.01f }
+            });
+
+    entity_registry->emplace<IMGUI_WorldPos_Window_Component>
+        (fox, IMGUI_WorldPos_Window_Component{});
+
+    entity_registry->emplace<RenderableMesh_Component>
+        (fox, RenderableMesh_Component{
+            meshManager->Get("fox_001")
+            });
+
+
+
+    entity_registry->emplace<LinearVelocity_Component>
+        (fox, LinearVelocity_Component{});
+
+    entity_registry->emplace<CollisionPackage::PhysicsObject_Component>
+        (fox, CollisionPackage::PhysicsObject_Component{});
+
+    entity_registry->emplace<CollisionPackage::PhysicsCollider_Component>
+        (fox, CollisionPackage::PhysicsCollider_Component{ false });
 
     
     //auto a = std::make_shared<eeng::RenderableMesh>(*characterMesh);
@@ -549,6 +583,7 @@ void Game::update(
 
     updateSystems(time, deltaTime, input);
     
+    notificationMessages.UpdateTime(deltaTime);
 
 
     //updateCamera(input);
@@ -571,6 +606,9 @@ void Game::render(
     int windowWidth,
     int windowHeight)
 {
+    
+    
+
     renderUI();
 
     matrices.windowSize = glm::ivec2(windowWidth, windowHeight);
@@ -618,7 +656,7 @@ void Game::renderUI()
 
     UI_Systems();
 
-
+    DrawIMGUIEventNotifications();
 
 
     // Begin game info ImGui window
@@ -657,6 +695,7 @@ void Game::renderUI()
         {
             ImGui::Checkbox("Show GameObject Ui", &show_ModifyObjectUI);
             ImGui::Checkbox("Show Bone Gizmos", &show_debugAnimations);
+            ImGui::InputFloat("Gravity", &gravityConst);
         }
     }
 
@@ -795,7 +834,9 @@ void Game::player_System(float deltaTime, InputManagerPtr input) {
 
         player.current_movement = player.current_movement * player.movement_lerp + player.target_movement * (1.0f - player.movement_lerp);
 
+        float vy = velocity._velocity.y;
         velocity._velocity = player.current_movement * player.speed;
+        velocity._velocity.y = vy;
        
     }
 
@@ -966,17 +1007,22 @@ void Game::RoateToDriection_System() {
         auto& velocity = view.get<LinearVelocity_Component>(entity);
         auto& rotator = view.get<RotateToVelocity_Component>(entity);
 
-        auto c = glm::normalize(glm::normalize(velocity._velocity));
-
-        float dotForward = glm::dot(c, glm_aux::vec3_001);
-        float dotLeft = glm::dot(c, glm_aux::vec3_100);
-
-        float absAngle = (1 - dotForward) * glm::pi<float>() * 0.5f;
+        auto c = glm::normalize(velocity._velocity * (glm::vec3(1,0,1)));
         
-        float angle = dotLeft < 0 ? -absAngle : absAngle;
+        if (glm::abs(c.x) + glm::abs(c.z) == 0)
+            continue;
+
+
+        float absAngle = (float)glm::atan(c.x/c.z); //(1 - dotForward) * glm::pi<float>() * 0.5f;
+        
+        float angle = glm::dot(c, glm_aux::vec3_001) < 0 ? 
+            absAngle + glm::radians( 180.0f) : 
+            absAngle;
         
         if (std::isnan(angle))
             continue;
+
+        
 
         transform.yaw() = angle;
 
@@ -1077,6 +1123,91 @@ void Game::imGui_W_Transform_System() {
         imGui_Base_WorldPositionUI(entity, lambda);
     }
 
+
+}
+
+void Game::imGui_W_Physics_System(std::shared_ptr<entt::registry> entity_registry) {
+    auto viewVel = entity_registry->view<Transform_Component, LinearVelocity_Component, IMGUI_WorldPos_Window_Component>();
+    auto viewPhys = entity_registry->view<Transform_Component, CollisionPackage::PhysicsObject_Component, IMGUI_WorldPos_Window_Component>();
+
+    float velocity_[3];
+    float acceleration_[3];
+
+    for (auto entity : viewVel) {
+        auto& transform = viewVel.get<Transform_Component>(entity);
+        auto& velocity = viewVel.get<LinearVelocity_Component>(entity);
+        auto& ui_window = viewVel.get<IMGUI_WorldPos_Window_Component>(entity);
+
+
+
+
+        if (!ui_window._isOn)
+            return;
+
+        velocity_[0] = velocity._velocity.x;
+        velocity_[1] = velocity._velocity.y;
+        velocity_[2] = velocity._velocity.z;
+
+        auto lambda = [&]() {
+
+            if (ImGui::CollapsingHeader("Phys Velocity", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (ImGui::InputFloat3("Velocity", velocity_/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    velocity._velocity = {
+                        velocity_[0],
+                        velocity_[1],
+                        velocity_[2]
+
+                    };
+                }
+            }
+            };
+
+
+        imGui_Base_WorldPositionUI(entity, lambda);
+        //imGui_Base_WorldPositionUI(transform, entity, lambda);
+
+
+
+    }
+
+    for (auto entity : viewPhys) {
+        auto& transform =   viewPhys.get<Transform_Component>(entity);
+        auto& physics =     viewPhys.get<CollisionPackage::PhysicsObject_Component>(entity);
+        auto& ui_window =   viewPhys.get<IMGUI_WorldPos_Window_Component>(entity);
+
+
+
+
+        if (!ui_window._isOn)
+            return;
+
+        acceleration_[0] = physics._acceleration.x;
+        acceleration_[1] = physics._acceleration.y;
+        acceleration_[2] = physics._acceleration.z;
+
+        auto lambda = [&]() {
+            if (ImGui::CollapsingHeader("Phys Acceleration", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (ImGui::InputFloat3("Acceleration", acceleration_/*, "%.3f", ImGuiInputTextFlags_AlwaysOverwrite*/)) {
+
+                    physics._acceleration = {
+                        acceleration_[0],
+                        acceleration_[1],
+                        acceleration_[2]
+
+                    };
+                }
+            }
+            };
+
+        imGui_Base_WorldPositionUI(entity, lambda);
+        //imGui_Base_WorldPositionUI(transform, entity, lambda);
+
+
+
+    }
 
 }
 
@@ -1337,6 +1468,8 @@ void Game::UI_Systems() {
 
         imGui_W_Transform_System();
 
+        imGui_W_Physics_System(entity_registry);
+
         imGui_W_Animation_Controller_System(entity_registry);
 
         imGui_W_Tag_System(entity_registry);
@@ -1373,9 +1506,9 @@ void Game::updateSystems(float time,
     RoateToDriection_System();
     CollisionPackage::UpdateColliders_System(entity_registry);
 
-    CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,-9.82,0 });
-    CollisionPackage::PhysicsUpdate_System(entity_registry, deltaTime);
+    CollisionPackage::Gravity_System(entity_registry, glm::vec3{ 0,gravityConst,0 });
     CollisionPackage::PlaneColission_System(entity_registry);
+    CollisionPackage::PhysicsUpdate_System(entity_registry, deltaTime);
     CollisionPackage::DynamicColission_System(entity_registry, event_dispatcher);
     
     CollisionPackage::CollisionStartEnd_System(entity_registry, event_dispatcher);
@@ -1407,3 +1540,84 @@ void Game::renderPassSystems(float time) {
 }
 
 
+void Game::DrawIMGUIEventNotifications() {
+    int counter = 0;
+    for (auto& msg : notificationMessages._messageQueue) {
+        DrawIMGUIEventNotification(msg, counter++);
+    }
+}
+
+void Game::DrawIMGUIEventNotification(const MsgTextBoxHolder::MsgNotification& message, int id ) {
+    
+
+    if (!entity_registry->all_of<Transform_Component>(message._entity)) {
+        return;
+    }
+
+    auto& transform = entity_registry->get<Transform_Component>(message._entity);
+
+    glm::ivec2 windowCords;
+
+    if (!imGui_Prepare_WorldToScreen(transform.position(), windowCords)) {
+        return;
+    }
+
+
+
+
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+    ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+    ImGuiWindowFlags flags = 
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoInputs |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_AlwaysAutoResize | 
+        ImGuiWindowFlags_NoResize;
+
+    
+  
+    if (ImGui::Begin(("Notification#" + std::to_string((int)message._entity)).c_str(), NULL, flags)) {
+        ImGui::Text(message._text.c_str());
+    }
+
+    ImGui::End();
+
+    ImGui::PopStyleColor(2);
+
+
+}
+
+
+
+void MsgTextBoxHolder::AddMessage(MsgTextBoxHolder::MsgNotification msg) {
+
+    _messageQueue.emplace_back(msg);
+}
+
+void MsgTextBoxHolder::AddEventMessage(EventP::EventArgs e) {
+    MsgTextBoxHolder::MsgNotification msg{
+        e._sender,
+        e._event
+    };
+
+    AddMessage(msg);
+    
+}
+
+
+void MsgTextBoxHolder::UpdateTime(float deltaTime) {
+    for (auto& var : _messageQueue) {
+        var._timer += deltaTime;
+    }
+
+    auto erase = std::remove_if(_messageQueue.begin(), _messageQueue.end(),
+        [&](MsgTextBoxHolder::MsgNotification msg) {
+            return msg._timer >= _notificationDuration;
+        });
+
+    _messageQueue.erase(erase, _messageQueue.end());
+
+
+}

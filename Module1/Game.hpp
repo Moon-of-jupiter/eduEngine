@@ -16,6 +16,33 @@
 #include "MeshManager.h"
 
 
+class MsgTextBoxHolder {
+   
+
+public:
+    struct MsgNotification {
+    public:
+        
+        entt::entity _entity;
+        std::string _text = "txt";
+        float   _timer = 0;
+    };
+
+    float _notificationDuration = 0.5;
+
+    std::list<MsgNotification> _messageQueue;
+
+    void AddEventMessage(EventP::EventArgs e);
+
+    void AddMessage(MsgNotification message);
+
+    void UpdateTime(float deltaTime);
+
+};
+
+
+
+
 /// @brief A Game may hold, update and render 3D geometry and GUI elements
 class Game : public eeng::GameBase
 {
@@ -87,6 +114,10 @@ private:
     } pointlight;
 
    
+    MsgTextBoxHolder notificationMessages;
+    void DrawIMGUIEventNotifications();
+    void DrawIMGUIEventNotification(const MsgTextBoxHolder::MsgNotification& message, int id);
+
 
 
     EventP::EventQueue event_dispatcher;
@@ -106,6 +137,7 @@ private:
     // UI toggles
     bool show_ModifyObjectUI = true;
     bool show_debugAnimations = false;
+    float gravityConst = -9.82;
 
 
     // Stats
@@ -178,6 +210,8 @@ private:
 
     
     void imGui_W_Transform_System();
+    void imGui_W_Physics_System(std::shared_ptr<entt::registry> entity_registry);
+
     void imGui_W_TextBox_System(std::shared_ptr<entt::registry> entity_registry);
     void imGui_W_Animation_Controller_System(std::shared_ptr<entt::registry> entity_registry);
     void imGui_W_Tag_System(std::shared_ptr<entt::registry> entity_registry);
